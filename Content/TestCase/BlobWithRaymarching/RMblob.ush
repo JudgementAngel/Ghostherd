@@ -1,0 +1,85 @@
+struct RMstruct
+{
+	float RMSphere(float3 pos,float radius)
+	{
+		return length(pos) - radius;
+	}
+
+	float3 RMNormal(float3 pos,float radius)
+	{
+
+		float2 off = float2(0.01,0);
+		return normalize(float3(
+			RMSphere(pos + off.xyy, radius) - RMSphere(pos - off.xyy, radius),
+			RMSphere(pos + off.yxy, radius) - RMSphere(pos - off.yxy, radius),
+			RMSphere(pos + off.yyx, radius) - RMSphere(pos - off.yyx, radius)
+			));
+	}
+
+	
+	float opSmoothUnion( float d1, float d2, float k ) 
+	{
+	    float h = clamp( 0.5 + 0.5*(d2-d1)/k, 0.0, 1.0 );
+	    return lerp( d2, d1, h ) - k*h*(1.0-h); 
+	}
+
+	float RMEllipsoid( float3 p, float3 r )
+	{
+	  float k0 = length(p/r);
+	  float k1 = length(p/(r*r));
+	  return k0*(k0-1.0)/k1;
+	}
+
+	float3 RMEllipsoidNormal(float3 pos,float3 radius)
+	{
+
+		float2 off = float2(0.01,0);
+		return normalize(float3(
+			RMEllipsoid(pos + off.xyy, radius) - RMEllipsoid(pos - off.xyy, radius),
+			RMEllipsoid(pos + off.yxy, radius) - RMEllipsoid(pos - off.yxy, radius),
+			RMEllipsoid(pos + off.yyx, radius) - RMEllipsoid(pos - off.yyx, radius)
+			));
+	}
+};
+
+
+RMstruct RM;
+float4 Col = 0.0f;
+float3 pos = WorldPosition;
+float3 Normal = 0;
+
+for(int i=0; i<MaxSteps; ++i)
+{
+
+	if(SceneDepth < length(pos - CameraPosition))
+	{
+		break;
+	}
+
+	// float d1 = RM.RMSphere(pos - ObjectPosition, SphereRadius);
+	float d1 = RM.RMEllipsoid(pos - ObjectPosition, SphereRadius);
+
+	// float d2 = SceneDepth - length(pos - CameraPosition);
+	float d2 = GetDistanceToNearestSurfaceGlobal(pos);
+
+	float distance = RM.opSmoothUnion(d1,d2,Smooth);
+
+	if(distance < RMStart)
+	{
+		Col.a += AlphaStep;
+		Col.a = min(1,Col.a);
+		// Normal = RM.RMEllipsoidNormal(pos - ObjectPosition, SphereRadius);
+	}
+
+	if(distance < RMStop)
+	{
+		Col = 1.0f;
+		// Normal = RM.RMNormal(pos - ObjectPosition, SphereRadius);
+		Normal = RM.RMEllipsoidNormal(pos - ObjectPosition, SphereRadius);
+		break;
+	}
+
+	pos += CameraVector * 1;
+}
+
+return float4(Normal,Col.a);
