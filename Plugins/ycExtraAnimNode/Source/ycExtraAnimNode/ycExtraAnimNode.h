@@ -7,7 +7,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAnimNodes, Log, All);
 
-class FycExtraAnimNodesModule : public IModuleInterface
+class FycExtraAnimNodeModule : public IModuleInterface
 {
 public:
 
