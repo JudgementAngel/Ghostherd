@@ -60,7 +60,7 @@ for(int i=0; i<MaxSteps; ++i)
 	float d1 = RM.RMEllipsoid(pos - ObjectPosition, SphereRadius);
 
 	// float d2 = SceneDepth - length(pos - CameraPosition);
-	float d2 = GetDistanceToNearestSurfaceGlobal(pos);
+	float d2 = GetDistanceToNearestSurfaceGlobal(pos); // 该函数在5.1之后不生效，TODO研究
 
 	float distance = RM.opSmoothUnion(d1,d2,Smooth);
 
