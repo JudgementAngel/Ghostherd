@@ -65,6 +65,7 @@ void UColoringUserWidget::ColoringTargetImageByPixelXY(UImage* TargetImage, int3
 	FLinearColor TintingColor)
 {
 	FColor SampleColor = UColoringUserWidget::SampleTexByPixelXY(PixelX, PixelY);
+	UE_LOG(LogTemp,Warning,TEXT("SampleColor.a = %d"),SampleColor.A);
 	FName ParamName = GetColoringParamNameByFloat(float(SampleColor.A));
 	TargetImage->GetDynamicMaterial()->SetVectorParameterValue(ParamName,TintingColor);
 }
