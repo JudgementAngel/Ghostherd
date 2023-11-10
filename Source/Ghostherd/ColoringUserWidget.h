@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/Image.h"
 #include "ColoringUserWidget.generated.h"
 
 /**
@@ -23,4 +24,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable,Category="UI Coloring")
 	FColor SampleTexByPixelXY(int32 PixelX ,int32 PixelY);
+
+	UFUNCTION(BlueprintCallable,Category="UI Coloring")
+	void ColoringTargetImageByPixelXY(UImage* TargetImage, int32 PixelX ,int32 PixelY,FLinearColor TintingColor);
+
+	FName GetColoringParamNameByFloat(float AlphaFloat);
 };
