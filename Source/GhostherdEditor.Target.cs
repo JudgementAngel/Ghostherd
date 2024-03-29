@@ -11,5 +11,7 @@ public class GhostherdEditorTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.V2;
 
 		ExtraModuleNames.AddRange( new string[] { "Ghostherd" } );
+
+		Name = "GhostherdEditor";
 	}
 }
