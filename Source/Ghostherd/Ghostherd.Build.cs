@@ -8,7 +8,7 @@ public class Ghostherd : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore","Kismet","UMG" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

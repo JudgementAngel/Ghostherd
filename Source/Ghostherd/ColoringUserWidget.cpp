@@ -5,7 +5,6 @@
 
 #include "Kismet/KismetSystemLibrary.h"
 
-
 void UColoringUserWidget::GetFormatedImageData(UTexture2D* TargetTexture2D)
 {
 	MyTexture2D = TargetTexture2D;
@@ -18,9 +17,8 @@ void UColoringUserWidget::GetFormatedImageData(UTexture2D* TargetTexture2D)
 	MyTexture2D->SRGB = false;
 	MyTexture2D->UpdateResource();
 
-	UColoringUserWidget::FormatedImageData = static_cast<const FColor*>( MyTexture2D->PlatformData->Mips[0].BulkData.LockReadOnly());
-
-	MyTexture2D->PlatformData->Mips[0].BulkData.Unlock();
+	UColoringUserWidget::FormatedImageData = static_cast<const FColor*>( MyTexture2D->GetPlatformData()->Mips[0].BulkData.LockReadOnly());
+	MyTexture2D->GetPlatformData()->Mips[0].BulkData.Unlock();
 
 	MyTexture2D->CompressionSettings = OldCompressionSettings;
 	MyTexture2D->MipGenSettings = OldMipGenSettings;
