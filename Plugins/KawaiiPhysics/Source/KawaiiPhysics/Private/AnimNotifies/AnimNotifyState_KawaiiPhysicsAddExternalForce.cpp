@@ -1,9 +1,11 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+﻿// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 
-#include "AnimNotifyState_KawaiiPhysics.h"
+#include "AnimNotifies/AnimNotifyState_KawaiiPhysicsAddExternalForce.h"
 #include "KawaiiPhysicsLibrary.h"
 #include "Misc/UObjectToken.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_KawaiiPhysicsAddExternalForce)
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotifyState"
 

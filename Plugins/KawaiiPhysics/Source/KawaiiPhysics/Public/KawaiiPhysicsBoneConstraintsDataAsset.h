@@ -1,8 +1,7 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+﻿// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "Engine/DataAsset.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"

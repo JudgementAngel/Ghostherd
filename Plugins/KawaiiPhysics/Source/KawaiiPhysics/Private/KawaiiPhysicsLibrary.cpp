@@ -1,10 +1,16 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+﻿// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #include "KawaiiPhysicsLibrary.h"
 
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+#include "Animation/AnimInstance.h"
+#endif
+
 #include "AnimNode_KawaiiPhysics.h"
 #include "BlueprintGameplayTagLibrary.h"
-#include "KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
 
 DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsLibrary, Verbose, All);
 
@@ -254,6 +260,53 @@ bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshCompo
 					bResult = true;
 				}
 			});
+	}
+
+	return bResult;
+}
+
+bool UKawaiiPhysicsLibrary::SetAlphaToComponent(USkeletalMeshComponent* MeshComp, float Alpha,
+                                                FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	bool bResult = false;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetAlpha"),
+			[&](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				InKawaiiPhysics.Alpha = Alpha;
+				bResult = true;
+			});
+	}
+
+	return bResult;
+}
+
+bool UKawaiiPhysicsLibrary::GetAlphaFromComponent(USkeletalMeshComponent* MeshComp, float& OutAlpha,
+                                                  FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	bool bResult = false;
+	OutAlpha = 0.0f;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetAlpha"),
+			[&](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				OutAlpha = InKawaiiPhysics.Alpha;
+				bResult = true;
+			});
+		if (bResult)
+		{
+			break;
+		}
 	}
 
 	return bResult;

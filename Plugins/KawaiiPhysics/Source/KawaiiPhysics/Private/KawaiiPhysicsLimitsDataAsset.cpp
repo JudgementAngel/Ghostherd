@@ -1,9 +1,11 @@
-// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "KawaiiPhysics.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLimitsDataAsset)
 
 DEFINE_LOG_CATEGORY(LogKawaiiPhysics);
 

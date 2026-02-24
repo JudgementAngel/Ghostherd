@@ -1,18 +1,18 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+﻿// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/EngineVersionComparison.h"
 #include "GameplayTagContainer.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 
-#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
 #include "StructUtils/InstancedStruct.h"
 #else
 #include "InstancedStruct.h"
 #endif
 
-#include "AnimNotifyState_KawaiiPhysics.generated.h"
+#include "AnimNotifyState_KawaiiPhysicsAddExternalForce.generated.h"
 
 /**
  * UAnimNotifyState_KawaiiPhysicsAddExternalForce
@@ -70,7 +70,8 @@ public:
 	TArray<FInstancedStruct> AdditionalExternalForces;
 
 	/**
-	 * Tags used to filter which external forces are applied.
+	 * Tags used to filter which external forces are applied. If empty, all nodes are applied.
+	 * 適用する外力をフィルタリングするためのTag。 空の場合は全てのノードに適用されます。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce")
 	FGameplayTagContainer FilterTags;
