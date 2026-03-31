@@ -1,0 +1,57 @@
+{
+	"FileVersion": 3,
+	"Version": 2,
+	"VersionName": "2.0.0",
+	"FriendlyName": "Unreal MCP Server",
+	"Description": "Model Context Protocol server for Unreal Engine 5.7. Exposes 195+ editor tools, resources, and prompts to AI agents via JSON-RPC 2.0 over HTTP. MCP spec 2025-06-18.",
+	"Category": "Editor",
+	"CreatedBy": "PodLab",
+	"CreatedByURL": "",
+	"DocsURL": "https://www.strayspark.studio/docs/unreal-mcp-server",
+	"MarketplaceURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"EnabledByDefault": true,
+	"Modules": [
+		{
+			"Name": "UnrealMCPServer",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true,
+			"Optional": true
+		},
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		},
+		{
+			"Name": "PCG",
+			"Enabled": true
+		},
+		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": true,
+			"Optional": true
+		}
+	]
+}
