@@ -1,6 +1,9 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPNavigationTools.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Editor.h"
 #include "Engine/World.h"
@@ -25,15 +28,11 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// build_navigation - Trigger navmesh build
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("build_navigation");
-		Def.Description = TEXT("Trigger a navigation mesh build for the current level. Requires at least one NavMeshBoundsVolume in the level.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "build_navigation")
+		.Description(TEXT("Trigger a navigation mesh build for the current level. Requires at least one NavMeshBoundsVolume in the level."))
+		.LongRunning()
+		.Idempotent()
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -57,29 +56,36 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(TEXT("Navigation mesh build triggered successfully."));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// query_navigation_path - Find path between two points
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_x"), TEXT("Start X position"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_y"), TEXT("Start Y position"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_z"), TEXT("Start Z position"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("end_x"), TEXT("End X position"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("end_y"), TEXT("End Y position"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("end_z"), TEXT("End Z position"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("query_navigation_path");
-		Def.Description = TEXT("Find a navigation path between two world positions. Returns path points, total distance, and whether the path is complete.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "query_navigation_path")
+		.Description(TEXT("Find a navigation path between two world positions. Returns path points, total distance, and whether the path is complete."))
+		.ReadOnly()
+		.Idempotent()
+		.NumberArg(TEXT("start_x"), TEXT("Start X position"), true)
+		.NumberArg(TEXT("start_y"), TEXT("Start Y position"), true)
+		.NumberArg(TEXT("start_z"), TEXT("Start Z position"), true)
+		.NumberArg(TEXT("end_x"), TEXT("End X position"), true)
+		.NumberArg(TEXT("end_y"), TEXT("End Y position"), true)
+		.NumberArg(TEXT("end_z"), TEXT("End Z position"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
+			// v4 (matrix-found): the declared-required args were never validated —
+			// GetNumberField silently returns 0 on missing fields, so the handler
+			// proceeded with garbage coordinates.
+			static const TCHAR* RequiredFields[] = {
+				TEXT("start_x"), TEXT("start_y"), TEXT("start_z"),
+				TEXT("end_x"), TEXT("end_y"), TEXT("end_z") };
+			for (const TCHAR* Field : RequiredFields)
+			{
+				if (!Args->HasTypedField<EJson::Number>(Field))
+				{
+					return FMCPToolResult::Error(FString::Printf(TEXT("%s is required (number)"), Field));
+				}
+			}
+
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
 
@@ -97,7 +103,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Args->GetNumberField(TEXT("end_z"))
 			);
 
-			FPathFindingQuery Query(nullptr, *NavSys->GetDefaultNavDataInstance(), Start, End);
+			// v4 (matrix-found EDITOR CRASH, present since v3): the default nav
+			// data instance is null until a navmesh exists for this level, and it
+			// was dereferenced unconditionally — instant access violation in any
+			// level without a built navmesh.
+			ANavigationData* NavData = NavSys->GetDefaultNavDataInstance();
+			if (!NavData)
+			{
+				return FMCPToolResult::ErrorStructured(EMCPError::NotFound,
+					TEXT("No navigation data exists in this level."),
+					TEXT("Add a NavMeshBoundsVolume covering the area and run build_navigation, then retry."));
+			}
+
+			FPathFindingQuery Query(nullptr, *NavData, Start, End);
 			FPathFindingResult Result = NavSys->FindPathSync(Query);
 
 			TSharedPtr<FJsonObject> Output = MakeShared<FJsonObject>();
@@ -140,24 +158,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Output->SetStringField(TEXT("reason"), TEXT("No valid path found between the specified points"));
 			}
 
-			return FMCPToolResult::Success(JsonToString(Output));
+			return FMCPToolResult::SuccessStructured(JsonToString(Output), Output);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_navigation_info - Get navmesh info
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_navigation_info");
-		Def.Description = TEXT("Get navigation system information: navmesh bounds, agent settings, and build status.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_navigation_info")
+		.Description(TEXT("Get navigation system information: navmesh bounds, agent settings, and build status."))
+		.ReadOnly()
+		.Idempotent()
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -169,7 +180,7 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			if (!NavSys)
 			{
-				return FMCPToolResult::Success(JsonToString(Output));
+				return FMCPToolResult::SuccessStructured(JsonToString(Output), Output);
 			}
 
 			// Nav data instances
@@ -202,10 +213,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Agent->SetNumberField(TEXT("agent_step_height"), DefaultConfig.AgentStepHeight);
 			Output->SetObjectField(TEXT("default_agent"), Agent);
 
-			return FMCPToolResult::Success(JsonToString(Output));
+			return FMCPToolResult::SuccessStructured(JsonToString(Output), Output);
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPNavigationTools

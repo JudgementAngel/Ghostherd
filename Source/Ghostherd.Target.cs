@@ -8,7 +8,7 @@ public class GhostherdTarget : TargetRules
 	public GhostherdTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
-		DefaultBuildSettings = BuildSettingsVersion.V6;
+		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_7;
 
 		ExtraModuleNames.AddRange( new string[] { "Ghostherd" } );

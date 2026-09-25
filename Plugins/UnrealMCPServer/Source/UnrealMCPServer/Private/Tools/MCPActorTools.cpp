@@ -1,5 +1,11 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPActorTools.h"
+#include "MCPValidate.h"
+#include "Common/MCPActorResolver.h"
+#include "Common/MCPPropertyIO.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "Editor.h"
@@ -80,21 +86,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// list_actors - List all actors in the current level
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("class_filter"), TEXT("Filter by class name (e.g., 'StaticMeshActor', 'PointLight'). Empty = all actors."));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_filter"), TEXT("Filter by actor label (substring match, case-insensitive)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("tag_filter"), TEXT("Filter by actor tag"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("folder_filter"), TEXT("Filter by folder path"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("limit"), TEXT("Maximum number of actors to return (default: 100)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_actors");
-		Def.Description = TEXT("List actors in the current level with optional filtering by class, name, tag, or folder. Returns actor names, classes, transforms, and tags.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "list_actors")
+		.Description(TEXT("List actors in the current level with optional filtering by class, name, tag, or folder. Returns actor names, classes, transforms, and tags."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("class_filter"), TEXT("Filter by class name (e.g., 'StaticMeshActor', 'PointLight'). Empty = all actors."))
+		.StringArg(TEXT("name_filter"), TEXT("Filter by actor label (substring match, case-insensitive)"))
+		.StringArg(TEXT("tag_filter"), TEXT("Filter by actor tag"))
+		.StringArg(TEXT("folder_filter"), TEXT("Filter by folder path"))
+		.IntArg(TEXT("limit"), TEXT("Maximum number of actors to return (default: 100)"))
+		.IntArg(TEXT("offset"), TEXT("Skip this many matches before returning results — combine with limit to paginate large levels (v4)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -109,6 +111,13 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			if (Args->HasField(TEXT("limit")))
 			{
 				Limit = FMath::Clamp((int32)Args->GetNumberField(TEXT("limit")), 1, 5000);
+			}
+			// v4 Phase 2: offset pagination — a 50K-foliage level previously
+			// truncated at 5000 with no way to reach the rest.
+			int32 Offset = 0;
+			if (Args->HasField(TEXT("offset")))
+			{
+				Offset = FMath::Max(0, (int32)Args->GetNumberField(TEXT("offset")));
 			}
 
 			TArray<FString> ActorJsons;
@@ -137,44 +146,40 @@ void RegisterAll(FMCPToolRegistry& Registry)
 					continue;
 
 				TotalCount++;
-				if (ActorJsons.Num() < Limit)
+				if (TotalCount > Offset && ActorJsons.Num() < Limit)
 				{
 					ActorJsons.Add(ActorToJsonString(Actor));
 				}
 			}
 
-			FString Result = FString::Printf(TEXT("Found %d actors (showing %d):\n[%s]"),
-				TotalCount, ActorJsons.Num(), *FString::Join(ActorJsons, TEXT(",\n")));
+			const int32 NextOffset = Offset + ActorJsons.Num();
+			FString Result = FString::Printf(TEXT("Found %d actors (showing %d, offset %d%s):\n[%s]"),
+				TotalCount, ActorJsons.Num(), Offset,
+				NextOffset < TotalCount ? *FString::Printf(TEXT(", next_offset %d"), NextOffset) : TEXT(""),
+				*FString::Join(ActorJsons, TEXT(",\n")));
 
 			return FMCPToolResult::Success(Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_actor - Spawn a new actor in the level
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_class"), TEXT("UE class name to spawn (e.g., 'StaticMeshActor', 'PointLight', 'CameraActor', 'PlayerStart')"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("X position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Y position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Z position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("pitch"), TEXT("Pitch rotation in degrees (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("yaw"), TEXT("Yaw rotation in degrees (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("roll"), TEXT("Roll rotation in degrees (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_x"), TEXT("X scale (default: 1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_y"), TEXT("Y scale (default: 1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_z"), TEXT("Z scale (default: 1)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("label"), TEXT("Actor label in the scene outliner"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("folder"), TEXT("Folder path in the scene outliner"));
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("tags"), TEXT("Array of tags to apply to the actor"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_actor");
-		Def.Description = TEXT("Spawn a new actor in the current level. Supports all standard UE actor classes including StaticMeshActor, PointLight, SpotLight, DirectionalLight, CameraActor, PlayerStart, etc.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_actor")
+		.Description(TEXT("Spawn a new actor in the current level. Supports all standard UE actor classes including StaticMeshActor, PointLight, SpotLight, DirectionalLight, CameraActor, PlayerStart, etc."))
+		.StringArg(TEXT("actor_class"), TEXT("UE class name to spawn (e.g., 'StaticMeshActor', 'PointLight', 'CameraActor', 'PlayerStart')"), true)
+		.NumberArg(TEXT("x"), TEXT("X position (default: 0)"))
+		.NumberArg(TEXT("y"), TEXT("Y position (default: 0)"))
+		.NumberArg(TEXT("z"), TEXT("Z position (default: 0)"))
+		.NumberArg(TEXT("pitch"), TEXT("Pitch rotation in degrees (default: 0)"))
+		.NumberArg(TEXT("yaw"), TEXT("Yaw rotation in degrees (default: 0)"))
+		.NumberArg(TEXT("roll"), TEXT("Roll rotation in degrees (default: 0)"))
+		.NumberArg(TEXT("scale_x"), TEXT("X scale (default: 1)"))
+		.NumberArg(TEXT("scale_y"), TEXT("Y scale (default: 1)"))
+		.NumberArg(TEXT("scale_z"), TEXT("Z scale (default: 1)"))
+		.StringArg(TEXT("label"), TEXT("Actor label in the scene outliner"))
+		.StringArg(TEXT("folder"), TEXT("Folder path in the scene outliner"))
+		.StringArrayArg(TEXT("tags"), TEXT("Array of tags to apply to the actor"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -266,27 +271,27 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Created actor '%s' of class '%s' at (%.1f, %.1f, %.1f)"),
 				*NewActor->GetActorLabel(), *ClassName, Location.X, Location.Y, Location.Z));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// destroy_actors - Delete actors by name pattern
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("actor_names"), TEXT("Array of actor labels to delete"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("destroy_actors");
-		Def.Description = TEXT("Delete one or more actors from the current level by their label names.");
-		Def.InputSchema = Schema;
-		Def.bDestructiveHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "destroy_actors")
+		.Description(TEXT("Delete one or more actors from the current level by their label names."))
+		.Destructive()
+		.StringArrayArg(TEXT("actor_names"), TEXT("Array of actor labels to delete"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
 
-			TArray<TSharedPtr<FJsonValue>> Names = Args->GetArrayField(TEXT("actor_names"));
+			// v4 Phase 3: TryGet avoids LogJson warnings on missing field;
+			// the existing empty-checks below handle the error path.
+			TArray<TSharedPtr<FJsonValue>> Names;
+			if (const TArray<TSharedPtr<FJsonValue>>* NamesPtr = nullptr;
+				Args->TryGetArrayField(TEXT("actor_names"), NamesPtr) && NamesPtr)
+			{
+				Names = *NamesPtr;
+			}
 			if (Names.Num() == 0) return FMCPToolResult::Error(TEXT("No actor names provided"));
 
 			TSet<FString> TargetNames;
@@ -322,32 +327,25 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Destroyed %d of %d requested actors"), Destroyed, TargetNames.Num()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_actor_transform - Set position/rotation/scale of an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor to transform"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("X position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Y position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Z position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("pitch"), TEXT("Pitch rotation in degrees"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("yaw"), TEXT("Yaw rotation in degrees"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("roll"), TEXT("Roll rotation in degrees"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_x"), TEXT("X scale"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_y"), TEXT("Y scale"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_z"), TEXT("Z scale"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("relative"), TEXT("If true, values are added to current transform. If false, values are set absolutely (default: false)."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_actor_transform");
-		Def.Description = TEXT("Set or modify the transform (position, rotation, scale) of an actor. Only provided fields are changed; omitted fields keep their current value.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_actor_transform")
+		.Description(TEXT("Set or modify the transform (position, rotation, scale) of an actor. Only provided fields are changed; omitted fields keep their current value."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to transform"), true)
+		.NumberArg(TEXT("x"), TEXT("X position"))
+		.NumberArg(TEXT("y"), TEXT("Y position"))
+		.NumberArg(TEXT("z"), TEXT("Z position"))
+		.NumberArg(TEXT("pitch"), TEXT("Pitch rotation in degrees"))
+		.NumberArg(TEXT("yaw"), TEXT("Yaw rotation in degrees"))
+		.NumberArg(TEXT("roll"), TEXT("Roll rotation in degrees"))
+		.NumberArg(TEXT("scale_x"), TEXT("X scale"))
+		.NumberArg(TEXT("scale_y"), TEXT("Y scale"))
+		.NumberArg(TEXT("scale_z"), TEXT("Z scale"))
+		.BoolArg(TEXT("relative"), TEXT("If true, values are added to current transform. If false, values are set absolutely (default: false)."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -413,24 +411,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Updated '%s' transform: Location(%.1f, %.1f, %.1f) Rotation(%.1f, %.1f, %.1f) Scale(%.2f, %.2f, %.2f)"),
 				*ActorName, Loc.X, Loc.Y, Loc.Z, Rot.Pitch, Rot.Yaw, Rot.Roll, Scale.X, Scale.Y, Scale.Z));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_actor_properties - Read properties of an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor"), true);
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("property_names"), TEXT("Specific property names to read. If empty, returns all visible properties."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_actor_properties");
-		Def.Description = TEXT("Read UPROPERTY values from an actor. Returns property names, types, and values. Use without property_names to discover available properties.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_actor_properties")
+		.Description(TEXT("Read UPROPERTY values from an actor. Returns property names, types, and values. Use without property_names to discover available properties."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor"), true)
+		.StringArrayArg(TEXT("property_names"), TEXT("Specific property names to read. If empty, returns all visible properties."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -484,26 +475,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			}
 
 			Result->SetObjectField(TEXT("properties"), Properties);
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_actor_property - Set a property on an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("property_name"), TEXT("Name of the UPROPERTY to set"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("property_value"), TEXT("New value as a string (will be parsed by UE property system)"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_actor_property");
-		Def.Description = TEXT("Set a UPROPERTY value on an actor. The value is provided as a string and parsed by the UE property system. Use get_actor_properties first to discover property names and current values.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_actor_property")
+		.Description(TEXT("Set a UPROPERTY value on an actor. The value is provided as a string and parsed by the UE property system. Use get_actor_properties first to discover property names and current values."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor"), true)
+		.StringArg(TEXT("property_name"), TEXT("Name of the UPROPERTY to set"), true)
+		.StringArg(TEXT("property_value"), TEXT("New value as a string (will be parsed by UE property system)"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -538,28 +522,25 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Set '%s.%s' = '%s'"), *ActorName, *PropName, *PropValue));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// select_actors - Set editor selection
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("actor_names"), TEXT("Array of actor labels to select"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("add_to_selection"), TEXT("If true, add to current selection. If false, replace selection (default: false)."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("select_actors");
-		Def.Description = TEXT("Select actors in the editor viewport by their labels. Useful for focusing on specific actors or preparing for batch operations.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "select_actors")
+		.Description(TEXT("Select actors in the editor viewport by their labels. Useful for focusing on specific actors or preparing for batch operations."))
+		.Idempotent()
+		.StringArrayArg(TEXT("actor_names"), TEXT("Array of actor labels to select"), true)
+		.BoolArg(TEXT("add_to_selection"), TEXT("If true, add to current selection. If false, replace selection (default: false)."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
+			// v4 (matrix-found): missing actor_names previously deselected
+			// everything and reported success ("selected 0").
+			TArray<FString> NameList;
+			BAIL_IF_INVALID(FMCPValidate::RequiredStringArray(Args, TEXT("actor_names"), NameList));
+
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
 
-			TArray<TSharedPtr<FJsonValue>> Names = Args->GetArrayField(TEXT("actor_names"));
 			bool bAddToSelection = false;
 			Args->TryGetBoolField(TEXT("add_to_selection"), bAddToSelection);
 
@@ -568,12 +549,7 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				GEditor->SelectNone(true, true, false);
 			}
 
-			TSet<FString> TargetNames;
-			for (const auto& Val : Names)
-			{
-				FString Name;
-				if (Val->TryGetString(Name)) TargetNames.Add(Name);
-			}
+			TSet<FString> TargetNames(NameList);
 
 			int32 Selected = 0;
 			for (TActorIterator<AActor> It(World); It; ++It)
@@ -588,30 +564,30 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Selected %d actors"), Selected));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// duplicate_actors - Clone actors with offset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("actor_names"), TEXT("Array of actor labels to duplicate"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("offset_x"), TEXT("X offset from original (default: 100)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("offset_y"), TEXT("Y offset from original (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("offset_z"), TEXT("Z offset from original (default: 0)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("copies"), TEXT("Number of copies to create (default: 1)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("duplicate_actors");
-		Def.Description = TEXT("Duplicate actors with an optional positional offset. Multiple copies can be created, each offset incrementally from the previous.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "duplicate_actors")
+		.Description(TEXT("Duplicate actors with an optional positional offset. Multiple copies can be created, each offset incrementally from the previous."))
+		.StringArrayArg(TEXT("actor_names"), TEXT("Array of actor labels to duplicate"), true)
+		.NumberArg(TEXT("offset_x"), TEXT("X offset from original (default: 100)"))
+		.NumberArg(TEXT("offset_y"), TEXT("Y offset from original (default: 0)"))
+		.NumberArg(TEXT("offset_z"), TEXT("Z offset from original (default: 0)"))
+		.IntArg(TEXT("copies"), TEXT("Number of copies to create (default: 1)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
 
-			TArray<TSharedPtr<FJsonValue>> Names = Args->GetArrayField(TEXT("actor_names"));
+			// v4 Phase 3: TryGet avoids LogJson warnings on missing field;
+			// the existing empty-checks below handle the error path.
+			TArray<TSharedPtr<FJsonValue>> Names;
+			if (const TArray<TSharedPtr<FJsonValue>>* NamesPtr = nullptr;
+				Args->TryGetArrayField(TEXT("actor_names"), NamesPtr) && NamesPtr)
+			{
+				Names = *NamesPtr;
+			}
 			if (Names.Num() == 0) return FMCPToolResult::Error(TEXT("No actor names provided"));
 
 			FVector Offset(
@@ -676,24 +652,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Duplicated %d actors, created: %s"),
 				Created, *FString::Join(CreatedNames, TEXT(", "))));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_actor_mobility - Change mobility of an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("mobility"), TEXT("Mobility setting"),
-			{ TEXT("Static"), TEXT("Stationary"), TEXT("Movable") }, true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_actor_mobility");
-		Def.Description = TEXT("Set the mobility of an actor's root component (Static, Stationary, or Movable).");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_actor_mobility")
+		.Description(TEXT("Set the mobility of an actor's root component (Static, Stationary, or Movable)."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor"), true)
+		.EnumArg(TEXT("mobility"), TEXT("Mobility setting"),
+			{ TEXT("Static"), TEXT("Stationary"), TEXT("Movable") }, true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -725,26 +694,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Set '%s' mobility to %s"), *ActorName, *MobilityStr));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// attach_actor - Attach one actor to another
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor to attach (child)"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("parent_name"), TEXT("Label of the parent actor to attach to"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("socket_name"), TEXT("Optional socket name to attach to"));
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("attach_rule"), TEXT("Attachment rule"),
-			{ TEXT("KeepRelative"), TEXT("KeepWorld"), TEXT("SnapToTarget") });
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("attach_actor");
-		Def.Description = TEXT("Attach one actor to another as a child. The child actor will follow the parent's transform.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "attach_actor")
+		.Description(TEXT("Attach one actor to another as a child. The child actor will follow the parent's transform."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to attach (child)"), true)
+		.StringArg(TEXT("parent_name"), TEXT("Label of the parent actor to attach to"), true)
+		.StringArg(TEXT("socket_name"), TEXT("Optional socket name to attach to"))
+		.EnumArg(TEXT("attach_rule"), TEXT("Attachment rule"),
+			{ TEXT("KeepRelative"), TEXT("KeepWorld"), TEXT("SnapToTarget") })
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -793,23 +755,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			}
 			return FMCPToolResult::Error(FString::Printf(TEXT("Failed to attach '%s' to '%s'"), *ActorName, *ParentName));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// detach_actor - Detach actor from parent
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor to detach"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("keep_world_transform"), TEXT("Keep world transform after detaching (default: true)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("detach_actor");
-		Def.Description = TEXT("Detach an actor from its parent, making it a root-level actor again.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "detach_actor")
+		.Description(TEXT("Detach an actor from its parent, making it a root-level actor again."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to detach"), true)
+		.BoolArg(TEXT("keep_world_transform"), TEXT("Keep world transform after detaching (default: true)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -840,23 +795,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Detached '%s' from '%s'"), *ActorName, *Parent->GetActorLabel()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_actor_hierarchy - Get parent/children tree
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_actor_hierarchy");
-		Def.Description = TEXT("Get the parent-child hierarchy for an actor: its parent (if any) and all directly attached children.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_actor_hierarchy")
+		.Description(TEXT("Get the parent-child hierarchy for an actor: its parent (if any) and all directly attached children."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -918,26 +866,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetArrayField(TEXT("children"), ChildArray);
 			Result->SetNumberField(TEXT("child_count"), ChildArray.Num());
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_actor_hidden - Show or hide an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("hidden"), TEXT("True to hide, false to show"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("propagate_to_children"), TEXT("Apply to attached children too (default: true)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_actor_hidden");
-		Def.Description = TEXT("Show or hide an actor in the editor viewport. Optionally propagates to attached children.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_actor_hidden")
+		.Description(TEXT("Show or hide an actor in the editor viewport. Optionally propagates to attached children."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor"), true)
+		.BoolArg(TEXT("hidden"), TEXT("True to hide, false to show"), true)
+		.BoolArg(TEXT("propagate_to_children"), TEXT("Apply to attached children too (default: true)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -982,25 +923,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				bHidden ? TEXT("hidden") : TEXT("visible"),
 				bPropagate ? TEXT(" (with children)") : TEXT("")));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_actor_tags - Add/remove/replace tags on an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor"), true);
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("tags"), TEXT("Array of tags"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("mode"), TEXT("How to apply tags"),
-			{ TEXT("replace"), TEXT("add"), TEXT("remove") });
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_actor_tags");
-		Def.Description = TEXT("Add, remove, or replace tags on an actor. Default mode is 'replace' which overwrites all existing tags.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_actor_tags")
+		.Description(TEXT("Add, remove, or replace tags on an actor. Default mode is 'replace' which overwrites all existing tags."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor"), true)
+		.StringArrayArg(TEXT("tags"), TEXT("Array of tags"), true)
+		.EnumArg(TEXT("mode"), TEXT("How to apply tags"),
+			{ TEXT("replace"), TEXT("add"), TEXT("remove") })
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -1060,8 +994,144 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Tags on '%s' (%s mode): [%s]"),
 				*ActorName, *Mode, *FString::Join(TagStrs, TEXT(", "))));
 		});
-		Registry.RegisterTool(Def);
-	}
+
+	// ================================================================
+	// list_actor_components — scene legibility (v4 Phase 2)
+	// ================================================================
+	MCP_TOOL(Registry, "list_actor_components")
+		.Description(TEXT("List an actor's full component tree: name, class, attach parent, and (for scene components) relative transform. Use before set_component_property to discover component names."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Actor label"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		{
+			UWorld* World = GetEditorWorld();
+			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
+
+			FString ActorName;
+			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
+				return FMCPToolResult::Error(TEXT("actor_name required"));
+
+			AActor* Actor = MCPCommon::FindActorByLabel(World, ActorName);
+			if (!Actor)
+				return FMCPToolResult::ErrorStructured(EMCPError::NotFound,
+					FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+
+			TArray<TSharedPtr<FJsonValue>> CompArr;
+			for (UActorComponent* Comp : Actor->GetComponents())
+			{
+				if (!Comp) continue;
+				TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+				Entry->SetStringField(TEXT("name"), Comp->GetName());
+				Entry->SetStringField(TEXT("class"), Comp->GetClass()->GetName());
+				if (const USceneComponent* Scene = Cast<USceneComponent>(Comp))
+				{
+					if (Scene->GetAttachParent())
+					{
+						Entry->SetStringField(TEXT("attach_parent"), Scene->GetAttachParent()->GetName());
+					}
+					const FVector Loc = Scene->GetRelativeLocation();
+					const FRotator Rot = Scene->GetRelativeRotation();
+					const FVector Scale = Scene->GetRelativeScale3D();
+					TSharedPtr<FJsonObject> Xform = MakeShared<FJsonObject>();
+					Xform->SetNumberField(TEXT("x"), Loc.X);     Xform->SetNumberField(TEXT("y"), Loc.Y);     Xform->SetNumberField(TEXT("z"), Loc.Z);
+					Xform->SetNumberField(TEXT("pitch"), Rot.Pitch); Xform->SetNumberField(TEXT("yaw"), Rot.Yaw); Xform->SetNumberField(TEXT("roll"), Rot.Roll);
+					Xform->SetNumberField(TEXT("scale_x"), Scale.X); Xform->SetNumberField(TEXT("scale_y"), Scale.Y); Xform->SetNumberField(TEXT("scale_z"), Scale.Z);
+					Entry->SetObjectField(TEXT("relative_transform"), Xform);
+				}
+				CompArr.Add(MakeShared<FJsonValueObject>(Entry));
+			}
+
+			TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
+			Out->SetStringField(TEXT("actor"), ActorName);
+			Out->SetNumberField(TEXT("count"), CompArr.Num());
+			Out->SetArrayField(TEXT("components"), CompArr);
+			return FMCPToolResult::SuccessStructured(
+				FString::Printf(TEXT("'%s' has %d component(s)."), *ActorName, CompArr.Num()), Out);
+		});
+
+	// ================================================================
+	// get_component_info — per-component property dump (v4 Phase 2)
+	// ================================================================
+	MCP_TOOL(Registry, "get_component_info")
+		.Description(TEXT("Inspect one component on an actor: class hierarchy and the values of requested properties (or a curated default set). Property values are exported as JSON."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Actor label"), true)
+		.StringArg(TEXT("component_name"), TEXT("Component name (from list_actor_components)"), true)
+		.StringArrayArg(TEXT("properties"), TEXT("Specific property names to read (omit for common ones: Mobility, bVisible, bHiddenInGame, ComponentTags)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		{
+			UWorld* World = GetEditorWorld();
+			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
+
+			FString ActorName, CompName;
+			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
+				return FMCPToolResult::Error(TEXT("actor_name required"));
+			if (!Args->TryGetStringField(TEXT("component_name"), CompName))
+				return FMCPToolResult::Error(TEXT("component_name required"));
+
+			AActor* Actor = MCPCommon::FindActorByLabel(World, ActorName);
+			if (!Actor)
+				return FMCPToolResult::ErrorStructured(EMCPError::NotFound,
+					FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+
+			UActorComponent* Target = nullptr;
+			TArray<FString> Available;
+			for (UActorComponent* Comp : Actor->GetComponents())
+			{
+				if (!Comp) continue;
+				Available.Add(Comp->GetName());
+				if (Comp->GetName() == CompName) { Target = Comp; }
+			}
+			if (!Target)
+				return FMCPToolResult::ErrorStructured(EMCPError::NotFound,
+					FString::Printf(TEXT("Component '%s' not found on '%s'"), *CompName, *ActorName),
+					TEXT("Component names are listed in did_you_mean."), Available);
+
+			TArray<FString> PropNames;
+			const TArray<TSharedPtr<FJsonValue>>* Requested = nullptr;
+			if (Args->TryGetArrayField(TEXT("properties"), Requested))
+			{
+				for (const auto& V : *Requested) { FString N; if (V->TryGetString(N)) PropNames.Add(N); }
+			}
+			if (PropNames.Num() == 0)
+			{
+				PropNames = { TEXT("Mobility"), TEXT("bVisible"), TEXT("bHiddenInGame"), TEXT("ComponentTags") };
+			}
+
+			TSharedPtr<FJsonObject> Props = MakeShared<FJsonObject>();
+			TArray<FString> Missing;
+			for (const FString& PropName : PropNames)
+			{
+				FProperty* Prop = Target->GetClass()->FindPropertyByName(FName(*PropName));
+				if (!Prop) { Missing.Add(PropName); continue; }
+				TSharedPtr<FJsonValue> Value = MCPCommon::ExportPropertyToJson(Prop, Target);
+				Props->SetField(PropName, Value.IsValid() ? Value : MakeShared<FJsonValueNull>());
+			}
+
+			TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
+			Out->SetStringField(TEXT("component"), CompName);
+			Out->SetStringField(TEXT("class"), Target->GetClass()->GetName());
+			// Class hierarchy up to UActorComponent for capability discovery.
+			TArray<TSharedPtr<FJsonValue>> Hierarchy;
+			for (UClass* C = Target->GetClass(); C && C != UActorComponent::StaticClass()->GetSuperClass(); C = C->GetSuperClass())
+			{
+				Hierarchy.Add(MakeShared<FJsonValueString>(C->GetName()));
+				if (C == UActorComponent::StaticClass()) break;
+			}
+			Out->SetArrayField(TEXT("class_hierarchy"), Hierarchy);
+			Out->SetObjectField(TEXT("properties"), Props);
+			if (Missing.Num() > 0)
+			{
+				TArray<TSharedPtr<FJsonValue>> MissArr;
+				for (const FString& M : Missing) MissArr.Add(MakeShared<FJsonValueString>(M));
+				Out->SetArrayField(TEXT("missing_properties"), MissArr);
+			}
+			return FMCPToolResult::SuccessStructured(
+				FString::Printf(TEXT("Component '%s' (%s) on '%s'."), *CompName,
+					*Target->GetClass()->GetName(), *ActorName), Out);
+		});
 }
 
 } // namespace MCPActorTools

@@ -1,5 +1,8 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPMetaSoundTools.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "Editor.h"
@@ -10,6 +13,7 @@
 #include "UObject/SavePackage.h"
 #include "Misc/PackageName.h"
 #include "FileHelpers.h"
+#include "Common/MCPAssetCreate.h"
 
 // ---------------------------------------------------------------------------
 // MetaSound module availability check
@@ -116,21 +120,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// create_metasound_source
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path for the new MetaSound Source asset (e.g., '/Game/Audio/MS_MySound')."),
-			true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_metasound_source");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "create_metasound_source")
+		.Description(TEXT(
 			"Create a new MetaSound Source asset at the specified content path. "
 			"The MetaSound plugin must be enabled in Edit > Plugins. "
-			"The asset is saved to disk immediately after creation.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"The asset is saved to disk immediately after creation."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path for the new MetaSound Source asset (e.g., '/Game/Audio/MS_MySound')."),
+			true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			// --- Validate MetaSound availability ---
 			UClass* MetaSoundSourceClass = FindMetaSoundClass(TEXT("MetaSoundSource"));
@@ -188,6 +187,9 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			// --- Register with Asset Registry and save ---
 			FAssetRegistryModule::AssetCreated(NewAsset);
 			Package->MarkPackageDirty();
+			// Journal the creation so run_tool_script can report truthfully that this
+			// asset survives a rollback (UE package creation is not transactional).
+			MCPCommon::NoteAssetCreated(PackagePath);
 
 			FString PackageFilename = FPackageName::LongPackageNameToFilename(
 				PackagePath, FPackageName::GetAssetPackageExtension());
@@ -207,29 +209,22 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetStringField(TEXT("package"), PackagePath);
 			Result->SetStringField(TEXT("saved_to"), PackageFilename);
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_metasound_info
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path of the MetaSound Source or Patch asset (e.g., '/Game/Audio/MS_MySound')."),
-			true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_metasound_info");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "get_metasound_info")
+		.Description(TEXT(
 			"Return information about a MetaSound asset: asset name, class, output format (channels), "
-			"duration, and looping flag. Properties are read via UObject reflection.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"duration, and looping flag. Properties are read via UObject reflection."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path of the MetaSound Source or Patch asset (e.g., '/Game/Audio/MS_MySound')."),
+			true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			if (!IsMetaSoundAvailable())
 				return FMCPToolResult::Error(
@@ -321,35 +316,28 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetBoolField(TEXT("is_source"), bIsSource);
 			Result->SetBoolField(TEXT("is_patch"), bIsPatch);
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_metasound_parameter
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path of the MetaSound asset (e.g., '/Game/Audio/MS_MySound')."), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("parameter_name"),
-			TEXT("Name of the property to set on the MetaSound asset as exposed via UObject reflection."), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("value"),
-			TEXT("New value expressed as a string. Booleans: 'true'/'false'. Numbers: '1.5'. Enums: display name string."), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("type"),
-			TEXT("Hint for value interpretation (Float, Int, Bool, String). Default: Float."),
-			{ TEXT("Float"), TEXT("Int"), TEXT("Bool"), TEXT("String") });
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_metasound_parameter");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "set_metasound_parameter")
+		.Description(TEXT(
 			"Set a default parameter value on a MetaSound asset using UObject property reflection. "
 			"The parameter_name must match a UPROPERTY on the MetaSound class. "
 			"Use get_metasound_info to discover the asset's class and then consult the MetaSound "
-			"documentation for available properties (e.g., 'OutputFormat', 'bLooping').");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"documentation for available properties (e.g., 'OutputFormat', 'bLooping')."))
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path of the MetaSound asset (e.g., '/Game/Audio/MS_MySound')."), true)
+		.StringArg(TEXT("parameter_name"),
+			TEXT("Name of the property to set on the MetaSound asset as exposed via UObject reflection."), true)
+		.StringArg(TEXT("value"),
+			TEXT("New value expressed as a string. Booleans: 'true'/'false'. Numbers: '1.5'. Enums: display name string."), true)
+		.EnumArg(TEXT("type"),
+			TEXT("Hint for value interpretation (Float, Int, Bool, String). Default: Float."),
+			{ TEXT("Float"), TEXT("Int"), TEXT("Bool"), TEXT("String") })
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			if (!IsMetaSoundAvailable())
 				return FMCPToolResult::Error(
@@ -436,32 +424,25 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetStringField(TEXT("value_set"), CoercedValue);
 			Result->SetStringField(TEXT("cpp_type"), Prop->GetCPPType());
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// list_metasound_assets
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path"),
-			TEXT("Content path to search recursively (default: '/Game/')."));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_filter"),
-			TEXT("Optional substring filter applied to the asset name."));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("limit"),
-			TEXT("Maximum number of results to return (default: 100)."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_metasound_assets");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "list_metasound_assets")
+		.Description(TEXT(
 			"List all MetaSound Source and MetaSound Patch assets in the project using the Asset Registry. "
-			"Returns name, content path, and class for each asset found.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Returns name, content path, and class for each asset found."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("path"),
+			TEXT("Content path to search recursively (default: '/Game/')."))
+		.StringArg(TEXT("name_filter"),
+			TEXT("Optional substring filter applied to the asset name."))
+		.IntArg(TEXT("limit"),
+			TEXT("Maximum number of results to return (default: 100)."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			if (!IsMetaSoundAvailable())
 				return FMCPToolResult::Error(
@@ -533,32 +514,25 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Output->SetNumberField(TEXT("returned"), Results.Num());
 			Output->SetArrayField(TEXT("assets"), Results);
 
-			return FMCPToolResult::Success(JsonToString(Output));
+			return FMCPToolResult::SuccessStructured(JsonToString(Output), Output);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// duplicate_metasound
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("source_path"),
-			TEXT("Content path of the MetaSound asset to duplicate (e.g., '/Game/Audio/MS_Base')."), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("dest_path"),
-			TEXT("Destination content folder for the duplicate (e.g., '/Game/Audio/Variants/')."), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("new_name"),
-			TEXT("Name for the new duplicate asset (e.g., 'MS_BaseVariant')."), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("duplicate_metasound");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "duplicate_metasound")
+		.Description(TEXT(
 			"Duplicate an existing MetaSound Source or Patch asset to create a variant. "
 			"Uses IAssetTools::DuplicateAsset so that all internal MetaSound graph data is "
-			"properly deep-copied. The duplicate is saved to disk immediately.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"properly deep-copied. The duplicate is saved to disk immediately."))
+		.Idempotent()
+		.StringArg(TEXT("source_path"),
+			TEXT("Content path of the MetaSound asset to duplicate (e.g., '/Game/Audio/MS_Base')."), true)
+		.StringArg(TEXT("dest_path"),
+			TEXT("Destination content folder for the duplicate (e.g., '/Game/Audio/Variants/')."), true)
+		.StringArg(TEXT("new_name"),
+			TEXT("Name for the new duplicate asset (e.g., 'MS_BaseVariant')."), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			if (!IsMetaSoundAvailable())
 				return FMCPToolResult::Error(
@@ -625,34 +599,27 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Result->SetStringField(TEXT("warning"),
 					TEXT("Duplicate was created in memory but could not be saved to disk."));
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_metasound_quality
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path of the MetaSound Source asset (e.g., '/Game/Audio/MS_MySound')."), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("is_looping"),
-			TEXT("Set whether the MetaSound plays in a continuous loop."));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("duration"),
-			TEXT("Override the duration in seconds (if the MetaSound asset exposes a duration property)."));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("output_channels"),
-			TEXT("Set the output channel count: 1 = Mono, 2 = Stereo, 4 = Quad, 6 = 5.1, 8 = 7.1. "
-			     "Maps to the OutputFormat enum on UMetaSoundSource."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_metasound_quality");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "set_metasound_quality")
+		.Description(TEXT(
 			"Set quality and output settings on a MetaSound Source asset using UObject reflection. "
 			"Supports looping, duration, and output channel count (mapped to the OutputFormat enum). "
-			"Only parameters that are explicitly provided are modified.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Only parameters that are explicitly provided are modified."))
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path of the MetaSound Source asset (e.g., '/Game/Audio/MS_MySound')."), true)
+		.BoolArg(TEXT("is_looping"),
+			TEXT("Set whether the MetaSound plays in a continuous loop."))
+		.NumberArg(TEXT("duration"),
+			TEXT("Override the duration in seconds (if the MetaSound asset exposes a duration property)."))
+		.IntArg(TEXT("output_channels"),
+			TEXT("Set the output channel count: 1 = Mono, 2 = Stereo, 4 = Quad, 6 = 5.1, 8 = 7.1. "
+			     "Maps to the OutputFormat enum on UMetaSoundSource."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			if (!IsMetaSoundAvailable())
 				return FMCPToolResult::Error(
@@ -815,10 +782,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Result->SetArrayField(TEXT("warnings"), WarnArray);
 			}
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPMetaSoundTools

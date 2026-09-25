@@ -1,3 +1,5 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -5,8 +7,11 @@
 #include "Dom/JsonValue.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
+#include "MCPRequestContext.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogUnrealMCP, Log, All);
+// Exported so the Tests module (and future modules) can log to the same
+// category — same idiom as CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogHAL, ...).
+UNREALMCPSERVER_API DECLARE_LOG_CATEGORY_EXTERN(LogUnrealMCP, Log, All);
 
 // ============================================================================
 // MCP Protocol Constants
@@ -16,19 +21,38 @@ namespace MCPProtocol
 {
 	inline const FString Version = TEXT("2025-06-18");
 	inline const FString ServerName = TEXT("unreal-mcp-server");
-	inline const FString ServerVersion = TEXT("2.0.0");
+	inline const FString ServerVersion = TEXT("5.0.0");
 
 	namespace Methods
 	{
 		inline const FString Initialize = TEXT("initialize");
 		inline const FString Initialized = TEXT("notifications/initialized");
+		inline const FString Cancelled   = TEXT("notifications/cancelled");
 		inline const FString Ping = TEXT("ping");
 		inline const FString ToolsList = TEXT("tools/list");
 		inline const FString ToolsCall = TEXT("tools/call");
 		inline const FString ResourcesList = TEXT("resources/list");
 		inline const FString ResourcesRead = TEXT("resources/read");
+		inline const FString ResourcesTemplatesList = TEXT("resources/templates/list"); // v5 increment 15
 		inline const FString PromptsList = TEXT("prompts/list");
 		inline const FString PromptsGet = TEXT("prompts/get");
+		inline const FString ToolsGetSchema = TEXT("tools/get_schema");
+
+		// v5 increment 24 (V5-13): task-extension methods over the owned operation store (advertised under
+		// capabilities.experimental["unrealmcp/tasks"]).
+		inline const FString TasksList   = TEXT("tasks/list");
+		inline const FString TasksGet    = TEXT("tasks/get");
+		inline const FString TasksCancel = TEXT("tasks/cancel");
+
+		// Phase C / C4 — multi-call transactions
+		inline const FString TransactionsBegin    = TEXT("transactions/begin");
+		inline const FString TransactionsCommit   = TEXT("transactions/commit");
+		inline const FString TransactionsRollback = TEXT("transactions/rollback");
+
+		// Phase C / C5 — per-session working set
+		inline const FString WorkingSetGet   = TEXT("workingset/get");
+		inline const FString WorkingSetSet   = TEXT("workingset/set");
+		inline const FString WorkingSetClear = TEXT("workingset/clear");
 	}
 }
 
@@ -107,6 +131,46 @@ struct FMCPContentBlock
 // Tool Result
 // ============================================================================
 
+/** Coarse error taxonomy. Carried in structuredContent.code so agents can drive
+ *  recovery flows from a small enum instead of regexing message strings. */
+enum class EMCPError : uint8
+{
+	None = 0,
+	NotFound,           // Asset / actor / function not found
+	AlreadyExists,      // Asset already exists at the requested path
+	InvalidPath,        // Package path malformed
+	InvalidName,        // Asset/actor name has illegal characters
+	OutOfRange,         // Numeric arg out of allowed range
+	Locked,             // Asset is checked out / read-only
+	RequiresGameThread, // Tool was called off the game thread (shouldn't happen via registry)
+	RequiresPieOff,     // Tool refuses while PIE is active
+	ScopeDenied,        // Caller's scope is below the tool's required scope
+	Unsupported,        // Feature not supported by this tool (e.g. dry_run)
+	Timeout,            // Tool execution exceeded ToolCallTimeoutSeconds (v4 / Phase 0)
+	Internal,           // Catch-all engine/tool failure
+};
+
+inline FString MCPErrorCodeToString(EMCPError Code)
+{
+	switch (Code)
+	{
+	case EMCPError::None:               return TEXT("ok");
+	case EMCPError::NotFound:           return TEXT("not_found");
+	case EMCPError::AlreadyExists:      return TEXT("already_exists");
+	case EMCPError::InvalidPath:        return TEXT("invalid_path");
+	case EMCPError::InvalidName:        return TEXT("invalid_name");
+	case EMCPError::OutOfRange:         return TEXT("out_of_range");
+	case EMCPError::Locked:             return TEXT("locked");
+	case EMCPError::RequiresGameThread: return TEXT("requires_game_thread");
+	case EMCPError::RequiresPieOff:     return TEXT("requires_pie_off");
+	case EMCPError::ScopeDenied:        return TEXT("scope_denied");
+	case EMCPError::Unsupported:        return TEXT("unsupported");
+	case EMCPError::Timeout:            return TEXT("timeout");
+	case EMCPError::Internal:           return TEXT("internal");
+	}
+	return TEXT("unknown");
+}
+
 struct FMCPToolResult
 {
 	TArray<FMCPContentBlock> Content;
@@ -152,6 +216,35 @@ struct FMCPToolResult
 		return Result;
 	}
 
+	/** Structured error: human-readable text in content[0], plus a machine-readable
+	 *  payload in structuredContent: {code, message, hint, did_you_mean[]}. Agents
+	 *  can switch on `code` for recovery flows; `did_you_mean` carries fuzzy
+	 *  suggestions when applicable. */
+	static FMCPToolResult ErrorStructured(EMCPError Code, const FString& Message,
+		const FString& Hint = FString(),
+		const TArray<FString>& DidYouMean = TArray<FString>())
+	{
+		FMCPToolResult Result;
+		Result.Content.Add(FMCPContentBlock::MakeText(Message));
+		Result.bIsError = true;
+
+		TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
+		Err->SetStringField(TEXT("code"), MCPErrorCodeToString(Code));
+		Err->SetStringField(TEXT("message"), Message);
+		if (!Hint.IsEmpty())
+		{
+			Err->SetStringField(TEXT("hint"), Hint);
+		}
+		if (DidYouMean.Num() > 0)
+		{
+			TArray<TSharedPtr<FJsonValue>> Arr;
+			for (const FString& S : DidYouMean) { Arr.Add(MakeShared<FJsonValueString>(S)); }
+			Err->SetArrayField(TEXT("did_you_mean"), Arr);
+		}
+		Result.StructuredContent = Err;
+		return Result;
+	}
+
 	static FMCPToolResult WithImage(const FString& Text, const FString& Base64, const FString& Mime = TEXT("image/png"))
 	{
 		FMCPToolResult Result;
@@ -176,13 +269,21 @@ struct FMCPToolResult
 
 DECLARE_DELEGATE_RetVal_OneParam(FMCPToolResult, FMCPToolHandler, const TSharedPtr<FJsonObject>&);
 
+// v4 Phase 1: context-aware handler variant. Tools that need the caller's
+// scope / cancellation / session (e.g. run_tool_script re-dispatching inner
+// calls) bind this instead; the registry prefers it when bound.
+DECLARE_DELEGATE_RetVal_TwoParams(FMCPToolResult, FMCPToolHandlerCtx, const TSharedPtr<FJsonObject>&, const FMCPRequestContext&);
+
 struct FMCPToolDefinition
 {
 	FString Name;
 	FString Description;
+	FName Category;                       // v4 Phase 1: registration category (drives catalog mode / search_tools)
 	TSharedPtr<FJsonObject> InputSchema;
 	TSharedPtr<FJsonObject> OutputSchema; // Optional: structured output schema (MCP spec 2025-06-18)
 	FMCPToolHandler Handler;
+	FMCPToolHandlerCtx PreviewHandlerCtx; // Dedicated non-mutating preflight; never bind the apply handler here.
+	FMCPToolHandlerCtx HandlerCtx;        // v4 Phase 1: preferred when bound
 
 	// Tool Annotations (MCP spec 2025-06-18)
 	bool bReadOnlyHint = false;      // Tool only reads data, no side effects
@@ -190,11 +291,22 @@ struct FMCPToolDefinition
 	bool bIdempotentHint = false;     // Safe to retry, same result each time
 	bool bOpenWorldHint = true;       // Interacts with external world (UE editor)
 
+	// Capability hints (Phase C / C6) — agent-visible preconditions enforced by the registry.
+	bool bRequiresPieOff = false;     // Refuses to run while PIE is active
+	bool bSupportsDryRun = false;     // Effective only with a dedicated PreviewHandlerCtx.
+	bool SupportsSafePreview() const { return bSupportsDryRun && PreviewHandlerCtx.IsBound(); }
+	bool bLongRunningHint = false;    // v4: may exceed the grace window; converted to a pollable task
+
+	/** Full serialization — includes complete schemas with descriptions. Used for tools/get_schema. */
 	TSharedPtr<FJsonObject> ToJson() const
 	{
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 		Obj->SetStringField(TEXT("name"), Name);
 		Obj->SetStringField(TEXT("description"), Description);
+		if (!Category.IsNone())
+		{
+			Obj->SetStringField(TEXT("category"), Category.ToString());
+		}
 		if (InputSchema.IsValid())
 		{
 			Obj->SetObjectField(TEXT("inputSchema"), InputSchema);
@@ -210,12 +322,92 @@ struct FMCPToolDefinition
 		if (bDestructiveHint)  Annotations->SetBoolField(TEXT("destructiveHint"), true);
 		if (bIdempotentHint)   Annotations->SetBoolField(TEXT("idempotentHint"), true);
 		if (!bOpenWorldHint)   Annotations->SetBoolField(TEXT("openWorldHint"), false);
+		if (bRequiresPieOff)   Annotations->SetBoolField(TEXT("requiresPieOff"), true);
+		if (SupportsSafePreview()) Annotations->SetBoolField(TEXT("supportsDryRun"), true);
+		if (bLongRunningHint)  Annotations->SetBoolField(TEXT("longRunningHint"), true);
 		if (Annotations->Values.Num() > 0)
 		{
 			Obj->SetObjectField(TEXT("annotations"), Annotations);
 		}
 
 		return Obj;
+	}
+
+	/** Compact discovery preserves the complete contract, removing schema descriptions only. */
+	TSharedPtr<FJsonObject> ToJsonSlim() const
+	{
+		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+		Obj->SetStringField(TEXT("name"), Name);
+		Obj->SetStringField(TEXT("description"), Description);
+		if (!Category.IsNone())
+		{
+			Obj->SetStringField(TEXT("category"), Category.ToString());
+		}
+
+		if (InputSchema.IsValid())
+		{
+			Obj->SetObjectField(TEXT("inputSchema"), StripSchemaDescriptions(InputSchema));
+		}
+		if (OutputSchema.IsValid())
+		{
+			Obj->SetObjectField(TEXT("outputSchema"), StripSchemaDescriptions(OutputSchema));
+		}
+
+		// Annotations (compact)
+		TSharedPtr<FJsonObject> Annotations = MakeShared<FJsonObject>();
+		if (bReadOnlyHint)     Annotations->SetBoolField(TEXT("readOnlyHint"), true);
+		if (bDestructiveHint)  Annotations->SetBoolField(TEXT("destructiveHint"), true);
+		if (bIdempotentHint)   Annotations->SetBoolField(TEXT("idempotentHint"), true);
+		if (!bOpenWorldHint)   Annotations->SetBoolField(TEXT("openWorldHint"), false);
+		if (bRequiresPieOff)   Annotations->SetBoolField(TEXT("requiresPieOff"), true);
+		if (SupportsSafePreview()) Annotations->SetBoolField(TEXT("supportsDryRun"), true);
+		if (bLongRunningHint)  Annotations->SetBoolField(TEXT("longRunningHint"), true);
+		if (Annotations->Values.Num() > 0)
+		{
+			Obj->SetObjectField(TEXT("annotations"), Annotations);
+		}
+
+		return Obj;
+	}
+
+private:
+	// Walk schema positions only. "description" is also a legal property name,
+	// and descriptions inside default/const/enum values are application data.
+	static void RemoveSchemaDescriptions(const TSharedPtr<FJsonObject>& Schema, int32 Depth = 0)
+	{
+		if (!Schema.IsValid() || Depth > 128) return; // Retain deeper annotations safely.
+		Schema->RemoveField(TEXT("description"));
+		for (const TCHAR* Key : { TEXT("properties"), TEXT("patternProperties"), TEXT("$defs"),
+			TEXT("definitions"), TEXT("dependentSchemas"), TEXT("dependencies") })
+		{
+			const TSharedPtr<FJsonObject>* Map = nullptr;
+			if (Schema->TryGetObjectField(Key, Map))
+				for (const auto& Pair : (*Map)->Values)
+					if (Pair.Value.IsValid() && Pair.Value->Type == EJson::Object)
+						RemoveSchemaDescriptions(Pair.Value->AsObject(), Depth + 1);
+		}
+		for (const TCHAR* Key : { TEXT("items"), TEXT("additionalItems"), TEXT("additionalProperties"),
+			TEXT("unevaluatedProperties"), TEXT("unevaluatedItems"), TEXT("contains"),
+			TEXT("propertyNames"), TEXT("not"), TEXT("if"), TEXT("then"), TEXT("else"),
+			TEXT("allOf"), TEXT("anyOf"), TEXT("oneOf"), TEXT("prefixItems") })
+		{
+			const auto Value = Schema->TryGetField(Key);
+			if (!Value.IsValid()) continue;
+			if (Value->Type == EJson::Object)
+				RemoveSchemaDescriptions(Value->AsObject(), Depth + 1);
+			else if (Value->Type == EJson::Array)
+				for (const auto& Item : Value->AsArray())
+					if (Item.IsValid() && Item->Type == EJson::Object)
+						RemoveSchemaDescriptions(Item->AsObject(), Depth + 1);
+		}
+	}
+
+	static TSharedPtr<FJsonObject> StripSchemaDescriptions(const TSharedPtr<FJsonObject>& Schema)
+	{
+		TSharedPtr<FJsonObject> Copy = MakeShared<FJsonObject>();
+		FJsonObject::Duplicate(Schema, Copy);
+		RemoveSchemaDescriptions(Copy);
+		return Copy;
 	}
 };
 
@@ -229,11 +421,12 @@ struct FMCPResourceDefinition
 	FString Name;
 	FString Description;
 	FString MimeType;
+	bool bTemplate = false; // v5: Uri contains one {parameter}; listed under resources/templates/list
 
 	TSharedPtr<FJsonObject> ToJson() const
 	{
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetStringField(TEXT("uri"), Uri);
+		Obj->SetStringField(bTemplate ? TEXT("uriTemplate") : TEXT("uri"), Uri);
 		Obj->SetStringField(TEXT("name"), Name);
 		if (!Description.IsEmpty())
 		{
@@ -252,6 +445,9 @@ struct FMCPResourceContent
 	FString Uri;
 	FString Text;
 	FString MimeType;
+	FString Blob;          // v5: base64 binary payload; when set, "blob" is emitted instead of "text"
+	bool bIsError = false; // v5: not found / not owned; the HTTP layer maps this to a JSON-RPC error
+	FString Error;
 
 	TSharedPtr<FJsonObject> ToJson() const
 	{
@@ -261,8 +457,13 @@ struct FMCPResourceContent
 		{
 			Obj->SetStringField(TEXT("mimeType"), MimeType);
 		}
-		Obj->SetStringField(TEXT("text"), Text);
+		if (!Blob.IsEmpty()) Obj->SetStringField(TEXT("blob"), Blob);
+		else Obj->SetStringField(TEXT("text"), Text);
 		return Obj;
+	}
+	static FMCPResourceContent NotFound(const FString& InUri, const FString& Why)
+	{
+		FMCPResourceContent C; C.Uri = InUri; C.bIsError = true; C.Error = Why; C.Text = Why; return C;
 	}
 };
 

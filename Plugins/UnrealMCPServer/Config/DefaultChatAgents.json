@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "_comment": [
+    "Local agent presets for the chat panel's LOCAL AGENTS group.",
+    "",
+    "WHY THIS IS DATA: agent CLIs change their flags faster than a plugin ships. A",
+    "hardcoded '--experimental-acp' is wrong the day it moves, and the failure mode",
+    "is an agent that will not start with no way for the user to fix it. Editing this",
+    "file is a one-line fix; a new agent nobody has heard of yet needs no plugin",
+    "update at all.",
+    "",
+    "User overrides live in <Project>/Saved/UnrealMCPChat/agents.json and win over",
+    "this file by 'id', so a plugin update never clobbers a hand-added agent.",
+    "",
+    "Fields:",
+    "  id             stable key, also the folder name under Saved/UnrealMCPChat/agents/",
+    "  display        what the model picker shows",
+    "  command        binary name (resolved on PATH) or an absolute path",
+    "  args           argument list, already split \u2014 quoting rules differ per platform",
+    "                 and one giant argument fails silently",
+    "  env            environment variables applied around the spawn",
+    "  mcpInjection   flag | env | manual | none \u2014 how the agent is told about our",
+    "                 MCP endpoint, which is what gives it all 450 editor tools",
+    "  mcpConfigFlag  the flag ('--mcp-config') or the variable name, per mcpInjection",
+    "  installHint    shown when the binary is missing",
+    "  notes          shown before launch so the user knows what will actually run",
+    "  models         models this agent can be pointed at. ACP does not report an",
+    "                 agent's model list, so it is data here. Empty = the agent",
+    "                 decides, which the picker says out loud.",
+    "  modelEnvVar    pass the chosen model as an environment variable",
+    "  modelArgFlag   ...or as a command-line flag. Only one is used.",
+    "                 Changing model RESTARTS the agent \u2014 neither reaches a running",
+    "                 process \u2014 so its conversation state starts fresh."
+  ],
+  "agents": [
+    {
+      "id": "claude-code",
+      "display": "Claude Code",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@zed-industries/claude-code-acp"
+      ],
+      "mcpInjection": "env",
+      "mcpConfigFlag": "CLAUDE_CODE_MCP_CONFIG",
+      "installHint": "Install Claude Code: npm i -g @anthropic-ai/claude-code, then sign in with 'claude'.",
+      "notes": "Runs through the ACP adapter. Uses your existing Claude Code subscription \u2014 no API key needed.",
+      "models": [
+        {
+          "id": "opus",
+          "display": "Claude Opus 5"
+        },
+        {
+          "id": "sonnet",
+          "display": "Claude Sonnet 5"
+        },
+        {
+          "id": "haiku",
+          "display": "Claude Haiku 4.5"
+        }
+      ],
+      "modelEnvVar": "ANTHROPIC_MODEL"
+    },
+    {
+      "id": "gemini-cli",
+      "display": "Gemini CLI",
+      "command": "gemini",
+      "args": [
+        "--experimental-acp"
+      ],
+      "mcpInjection": "flag",
+      "mcpConfigFlag": "--mcp-config",
+      "installHint": "Install Gemini CLI: npm i -g @google/gemini-cli, then run 'gemini' once to sign in.",
+      "notes": "Native ACP server.",
+      "models": [
+        {
+          "id": "gemini-3-pro",
+          "display": "Gemini 3 Pro"
+        },
+        {
+          "id": "gemini-3-flash",
+          "display": "Gemini 3 Flash"
+        }
+      ],
+      "modelArgFlag": "--model"
+    },
+    {
+      "id": "codex",
+      "display": "Codex CLI",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@zed-industries/codex-acp"
+      ],
+      "mcpInjection": "flag",
+      "mcpConfigFlag": "--mcp-config",
+      "installHint": "Install Codex: npm i -g @openai/codex, then run 'codex' once to sign in.",
+      "notes": "Runs through the ACP adapter. Codex also exposes a native app-server; that backend is optional and not built yet.",
+      "models": [
+        {
+          "id": "gpt-5",
+          "display": "GPT-5"
+        },
+        {
+          "id": "gpt-5-mini",
+          "display": "GPT-5 mini"
+        },
+        {
+          "id": "o4-mini",
+          "display": "o4-mini"
+        }
+      ],
+      "modelArgFlag": "--model"
+    },
+    {
+      "id": "kimi",
+      "display": "Kimi CLI",
+      "command": "kimi",
+      "args": [
+        "acp"
+      ],
+      "mcpInjection": "flag",
+      "mcpConfigFlag": "--mcp-config",
+      "installHint": "Install Kimi CLI and sign in with 'kimi'.",
+      "notes": "Native ACP mode.",
+      "models": [
+        {
+          "id": "kimi-k2",
+          "display": "Kimi K2"
+        }
+      ],
+      "modelArgFlag": "--model"
+    },
+    {
+      "id": "opencode",
+      "display": "OpenCode",
+      "command": "npx",
+      "args": [
+        "-y",
+        "opencode-ai",
+        "acp"
+      ],
+      "mcpInjection": "flag",
+      "mcpConfigFlag": "--mcp-config",
+      "installHint": "No install needed \u2014 npx fetches it on first run.",
+      "notes": "Native ACP mode. OpenCode also has an HTTP server mode; not used here.",
+      "modelArgFlag": "--model"
+    },
+    {
+      "id": "iflow",
+      "display": "iFlow CLI",
+      "command": "iflow",
+      "args": [
+        "--experimental-acp"
+      ],
+      "mcpInjection": "flag",
+      "mcpConfigFlag": "--mcp-config",
+      "installHint": "Install iFlow CLI and sign in once before using it here.",
+      "notes": "Native ACP server.",
+      "modelArgFlag": "--model"
+    },
+    {
+      "id": "custom",
+      "display": "Custom agent\u2026",
+      "command": "",
+      "args": [],
+      "mcpInjection": "flag",
+      "mcpConfigFlag": "--mcp-config",
+      "enabled": false,
+      "installHint": "Copy this entry into Saved/UnrealMCPChat/agents.json, give it a new id, and fill in 'command' and 'args'.",
+      "notes": "Template. Any ACP-speaking binary works: the panel spawns it, speaks JSON-RPC 2.0 over stdio, and hands it our MCP endpoint.",
+      "models": [],
+      "modelEnvVar": "",
+      "modelArgFlag": "--model"
+    }
+  ]
+}

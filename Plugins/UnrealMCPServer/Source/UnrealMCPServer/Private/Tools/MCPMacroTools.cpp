@@ -1,5 +1,8 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPMacroTools.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "Engine/World.h"
@@ -42,20 +45,14 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// create_basic_level - Creates a complete basic level with essentials
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("floor_size"), TEXT("Size of the floor plane in cm (default: 5000). The floor is scaled uniformly from the 100x100 engine Plane mesh."));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("add_player_start"), TEXT("Add a PlayerStart actor (default: true)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("add_nav_mesh"), TEXT("Add a NavMeshBoundsVolume covering the floor (default: true)"));
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("lighting_preset"), TEXT("Lighting preset"),
-			{ TEXT("Day"), TEXT("Night"), TEXT("Sunset"), TEXT("Indoor") });
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_basic_level");
-		Def.Description = TEXT("Creates a complete basic level with all essentials: floor plane, DirectionalLight, SkyLight, SkyAtmosphere, PostProcessVolume (infinite extent), ExponentialHeightFog, PlayerStart, and NavMeshBoundsVolume. Configures lighting based on preset (Day/Night/Sunset/Indoor).");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = false;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_basic_level")
+		.Description(TEXT("Creates a complete basic level with all essentials: floor plane, DirectionalLight, SkyLight, SkyAtmosphere, PostProcessVolume (infinite extent), ExponentialHeightFog, PlayerStart, and NavMeshBoundsVolume. Configures lighting based on preset (Day/Night/Sunset/Indoor)."))
+		.NumberArg(TEXT("floor_size"), TEXT("Size of the floor plane in cm (default: 5000). The floor is scaled uniformly from the 100x100 engine Plane mesh."))
+		.BoolArg(TEXT("add_player_start"), TEXT("Add a PlayerStart actor (default: true)"))
+		.BoolArg(TEXT("add_nav_mesh"), TEXT("Add a NavMeshBoundsVolume covering the floor (default: true)"))
+		.EnumArg(TEXT("lighting_preset"), TEXT("Lighting preset"),
+			{ TEXT("Day"), TEXT("Night"), TEXT("Sunset"), TEXT("Indoor") })
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -288,29 +285,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created basic level (%s preset, floor %.0f cm): %s"),
 				*LightingPreset, FloorSize, *FString::Join(CreatedActors, TEXT(", "))));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_trigger_volume - Creates a trigger box actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("label"), TEXT("Label for the trigger box actor"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("X position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Y position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Z position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("extent_x"), TEXT("Box half-extent along X in cm (default: 100)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("extent_y"), TEXT("Box half-extent along Y in cm (default: 100)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("extent_z"), TEXT("Box half-extent along Z in cm (default: 100)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("tag"), TEXT("Optional tag to apply to the actor"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_trigger_volume");
-		Def.Description = TEXT("Creates a TriggerBox actor with configurable position, extents, and optional tag. Useful for creating gameplay trigger zones.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = false;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_trigger_volume")
+		.Description(TEXT("Creates a TriggerBox actor with configurable position, extents, and optional tag. Useful for creating gameplay trigger zones."))
+		.StringArg(TEXT("label"), TEXT("Label for the trigger box actor"), true)
+		.NumberArg(TEXT("x"), TEXT("X position (default: 0)"))
+		.NumberArg(TEXT("y"), TEXT("Y position (default: 0)"))
+		.NumberArg(TEXT("z"), TEXT("Z position (default: 0)"))
+		.NumberArg(TEXT("extent_x"), TEXT("Box half-extent along X in cm (default: 100)"))
+		.NumberArg(TEXT("extent_y"), TEXT("Box half-extent along Y in cm (default: 100)"))
+		.NumberArg(TEXT("extent_z"), TEXT("Box half-extent along Z in cm (default: 100)"))
+		.StringArg(TEXT("tag"), TEXT("Optional tag to apply to the actor"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -364,28 +353,20 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created TriggerBox '%s' at (%.1f, %.1f, %.1f) with extents (%.1f, %.1f, %.1f)"),
 				*Label, Location.X, Location.Y, Location.Z, ExtentX, ExtentY, ExtentZ));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_light_rig - Creates a 3-point lighting setup
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("center_x"), TEXT("Center X position of the rig (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("center_y"), TEXT("Center Y position of the rig (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("center_z"), TEXT("Center Z position of the rig (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("radius"), TEXT("Distance of lights from center (default: 500)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("key_intensity"), TEXT("Key light intensity in candelas (default: 10)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("fill_intensity"), TEXT("Fill light intensity in candelas (default: 3)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("rim_intensity"), TEXT("Rim/back light intensity in candelas (default: 5)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_light_rig");
-		Def.Description = TEXT("Creates a 3-point lighting setup (key, fill, rim) around a center position. Key light is front-left, fill light is front-right (softer), rim/back light is behind the subject. All lights placed in 'Lighting/LightRig' folder.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = false;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_light_rig")
+		.Description(TEXT("Creates a 3-point lighting setup (key, fill, rim) around a center position. Key light is front-left, fill light is front-right (softer), rim/back light is behind the subject. All lights placed in 'Lighting/LightRig' folder."))
+		.NumberArg(TEXT("center_x"), TEXT("Center X position of the rig (default: 0)"))
+		.NumberArg(TEXT("center_y"), TEXT("Center Y position of the rig (default: 0)"))
+		.NumberArg(TEXT("center_z"), TEXT("Center Z position of the rig (default: 0)"))
+		.NumberArg(TEXT("radius"), TEXT("Distance of lights from center (default: 500)"))
+		.NumberArg(TEXT("key_intensity"), TEXT("Key light intensity in candelas (default: 10)"))
+		.NumberArg(TEXT("fill_intensity"), TEXT("Fill light intensity in candelas (default: 3)"))
+		.NumberArg(TEXT("rim_intensity"), TEXT("Rim/back light intensity in candelas (default: 5)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -462,30 +443,22 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created 3-point light rig (%d lights) centered at (%.1f, %.1f, %.1f) with radius %.1f"),
 				Created, Center.X, Center.Y, Center.Z, Radius));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_grid_layout - Creates a grid of mesh actors
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("mesh_path"), TEXT("Content path of the static mesh asset to use for each grid cell"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("rows"), TEXT("Number of rows in the grid"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("columns"), TEXT("Number of columns in the grid"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("spacing_x"), TEXT("Spacing between columns along X axis in cm (default: 200)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("spacing_y"), TEXT("Spacing between rows along Y axis in cm (default: 200)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_x"), TEXT("Grid origin X position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_y"), TEXT("Grid origin Y position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_z"), TEXT("Grid origin Z position (default: 0)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("material_path"), TEXT("Optional material to assign to all mesh actors"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_grid_layout");
-		Def.Description = TEXT("Creates a grid of StaticMeshActors arranged in rows and columns. All actors are placed in a 'Layout/Grid' folder.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = false;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_grid_layout")
+		.Description(TEXT("Creates a grid of StaticMeshActors arranged in rows and columns. All actors are placed in a 'Layout/Grid' folder."))
+		.StringArg(TEXT("mesh_path"), TEXT("Content path of the static mesh asset to use for each grid cell"), true)
+		.IntArg(TEXT("rows"), TEXT("Number of rows in the grid"), true)
+		.IntArg(TEXT("columns"), TEXT("Number of columns in the grid"), true)
+		.NumberArg(TEXT("spacing_x"), TEXT("Spacing between columns along X axis in cm (default: 200)"))
+		.NumberArg(TEXT("spacing_y"), TEXT("Spacing between rows along Y axis in cm (default: 200)"))
+		.NumberArg(TEXT("start_x"), TEXT("Grid origin X position (default: 0)"))
+		.NumberArg(TEXT("start_y"), TEXT("Grid origin Y position (default: 0)"))
+		.NumberArg(TEXT("start_z"), TEXT("Grid origin Z position (default: 0)"))
+		.StringArg(TEXT("material_path"), TEXT("Optional material to assign to all mesh actors"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -565,29 +538,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created %d actors in a %dx%d grid (spacing: %.1fx%.1f) starting at (%.1f, %.1f, %.1f)"),
 				Created, Rows, Columns, SpacingX, SpacingY, StartX, StartY, StartZ));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_ring_layout - Creates a circular arrangement of actors
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("mesh_path"), TEXT("Content path of the static mesh asset"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("count"), TEXT("Number of actors to distribute around the ring"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("radius"), TEXT("Radius of the ring in cm"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("center_x"), TEXT("Center X position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("center_y"), TEXT("Center Y position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("center_z"), TEXT("Center Z position (default: 0)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("face_center"), TEXT("Rotate actors to face the center of the ring (default: true)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("material_path"), TEXT("Optional material to assign to all mesh actors"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_ring_layout");
-		Def.Description = TEXT("Creates a circular arrangement of StaticMeshActors evenly distributed around a ring. Optionally rotates each actor to face the center. All actors placed in 'Layout/Ring' folder.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = false;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_ring_layout")
+		.Description(TEXT("Creates a circular arrangement of StaticMeshActors evenly distributed around a ring. Optionally rotates each actor to face the center. All actors placed in 'Layout/Ring' folder."))
+		.StringArg(TEXT("mesh_path"), TEXT("Content path of the static mesh asset"), true)
+		.IntArg(TEXT("count"), TEXT("Number of actors to distribute around the ring"), true)
+		.NumberArg(TEXT("radius"), TEXT("Radius of the ring in cm"), true)
+		.NumberArg(TEXT("center_x"), TEXT("Center X position (default: 0)"))
+		.NumberArg(TEXT("center_y"), TEXT("Center Y position (default: 0)"))
+		.NumberArg(TEXT("center_z"), TEXT("Center Z position (default: 0)"))
+		.BoolArg(TEXT("face_center"), TEXT("Rotate actors to face the center of the ring (default: true)"))
+		.StringArg(TEXT("material_path"), TEXT("Optional material to assign to all mesh actors"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -681,30 +646,22 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Created, RingRadius, Center.X, Center.Y, Center.Z,
 				bFaceCenter ? TEXT(", facing center") : TEXT("")));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_staircase - Creates a staircase from mesh geometry
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("mesh_path"), TEXT("Content path of the static mesh asset to use for each step"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("step_count"), TEXT("Number of steps in the staircase"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("step_height"), TEXT("Vertical height offset per step in cm (default: 20)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("step_depth"), TEXT("Horizontal depth offset per step in cm (default: 30)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("step_width"), TEXT("Width of each step in cm; used only for labeling, mesh defines actual width (default: 100)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_x"), TEXT("X position of the first step (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_y"), TEXT("Y position of the first step (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_z"), TEXT("Z position of the first step (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("yaw"), TEXT("Yaw rotation of the staircase in degrees (default: 0). Steps progress forward along this direction."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_staircase");
-		Def.Description = TEXT("Creates a staircase from N copies of a mesh arranged in ascending steps. Each step is offset by step_height vertically and step_depth horizontally along the yaw direction. All actors placed in 'Layout/Staircase' folder.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = false;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_staircase")
+		.Description(TEXT("Creates a staircase from N copies of a mesh arranged in ascending steps. Each step is offset by step_height vertically and step_depth horizontally along the yaw direction. All actors placed in 'Layout/Staircase' folder."))
+		.StringArg(TEXT("mesh_path"), TEXT("Content path of the static mesh asset to use for each step"), true)
+		.IntArg(TEXT("step_count"), TEXT("Number of steps in the staircase"), true)
+		.NumberArg(TEXT("step_height"), TEXT("Vertical height offset per step in cm (default: 20)"))
+		.NumberArg(TEXT("step_depth"), TEXT("Horizontal depth offset per step in cm (default: 30)"))
+		.NumberArg(TEXT("step_width"), TEXT("Width of each step in cm; used only for labeling, mesh defines actual width (default: 100)"))
+		.NumberArg(TEXT("start_x"), TEXT("X position of the first step (default: 0)"))
+		.NumberArg(TEXT("start_y"), TEXT("Y position of the first step (default: 0)"))
+		.NumberArg(TEXT("start_z"), TEXT("Z position of the first step (default: 0)"))
+		.NumberArg(TEXT("yaw"), TEXT("Yaw rotation of the staircase in degrees (default: 0). Steps progress forward along this direction."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -770,8 +727,6 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created staircase with %d steps (height: %.1f, depth: %.1f per step, yaw: %.1f). Total rise: %.1f cm, total run: %.1f cm"),
 				Created, StepHeight, StepDepth, Yaw, TotalHeight, TotalDepth));
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPMacroTools

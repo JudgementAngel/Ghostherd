@@ -1,5 +1,8 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPLandscapeTools.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "Landscape.h"
@@ -205,22 +208,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// get_landscape_info - Read-only info about all landscapes in the level
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Optional: filter to a specific landscape actor by label. If empty, all landscapes are returned."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_landscape_info");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "get_landscape_info")
+		.Description(TEXT(
 			"Get detailed information about landscape actors in the current level. "
 			"Reports name, class, component counts, quad/vertex resolution, world bounds, "
 			"scale, material, paint layers, and edit layers for each ALandscape and ALandscapeStreamingProxy. "
 			"Useful for understanding existing terrain before making modifications."
-		);
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Optional: filter to a specific landscape actor by label. If empty, all landscapes are returned."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -268,45 +266,12 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_landscape - Spawn a new landscape actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("World X position of the landscape origin (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("World Y position of the landscape origin (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("World Z position of the landscape origin (default: 0)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("num_components_x"),
-			TEXT("Number of landscape components along X axis (default: 8). "
-			     "Total quad width = num_components_x * sections_per_component * quads_per_section."));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("num_components_y"),
-			TEXT("Number of landscape components along Y axis (default: 8). "
-			     "Total quad height = num_components_y * sections_per_component * quads_per_section."));
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("quads_per_section"),
-			TEXT("Quads per subsection. Must be one of the standard UE values: 7, 15, 31, 63, 127, 255. "
-			     "Higher values = higher per-component resolution. Default: 63."),
-			{ TEXT("7"), TEXT("15"), TEXT("31"), TEXT("63"), TEXT("127"), TEXT("255") });
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("sections_per_component"),
-			TEXT("Number of subsections per component (1 or 2). Default: 1. "
-			     "Using 2 doubles the component's quad count and LOD flexibility."),
-			{ TEXT("1"), TEXT("2") });
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_x"),
-			TEXT("Landscape scale on X axis in cm per quad (default: 100). "
-			     "At scale 100 each quad = 1m in world space."));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_y"),
-			TEXT("Landscape scale on Y axis in cm per quad (default: 100)."));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_z"),
-			TEXT("Landscape Z scale controlling height range (default: 100). "
-			     "Actual height range in cm = +/- 256 * scale_z."));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("label"),
-			TEXT("Actor label shown in the World Outliner (default: 'Landscape')."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_landscape");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "create_landscape")
+		.Description(TEXT(
 			"Create a new flat landscape actor in the current level using UE's standard import pipeline. "
 			"The landscape is initialised with a flat (mid-grey) heightmap. "
 			"Parameters control the component grid, subsection size, and world-space scale. "
@@ -315,9 +280,35 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			"  Medium (4 km^2): 16x16 components, 1 section, 63 quads, scale 100\n"
 			"  Large  (8 km^2): 16x16 components, 2 sections, 127 quads, scale 100\n"
 			"After creation use get_landscape_info to confirm the result."
-		);
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		))
+		.NumberArg(TEXT("x"), TEXT("World X position of the landscape origin (default: 0)"))
+		.NumberArg(TEXT("y"), TEXT("World Y position of the landscape origin (default: 0)"))
+		.NumberArg(TEXT("z"), TEXT("World Z position of the landscape origin (default: 0)"))
+		.IntArg(TEXT("num_components_x"),
+			TEXT("Number of landscape components along X axis (default: 8). "
+			     "Total quad width = num_components_x * sections_per_component * quads_per_section."))
+		.IntArg(TEXT("num_components_y"),
+			TEXT("Number of landscape components along Y axis (default: 8). "
+			     "Total quad height = num_components_y * sections_per_component * quads_per_section."))
+		.EnumArg(TEXT("quads_per_section"),
+			TEXT("Quads per subsection. Must be one of the standard UE values: 7, 15, 31, 63, 127, 255. "
+			     "Higher values = higher per-component resolution. Default: 63."),
+			{ TEXT("7"), TEXT("15"), TEXT("31"), TEXT("63"), TEXT("127"), TEXT("255") })
+		.EnumArg(TEXT("sections_per_component"),
+			TEXT("Number of subsections per component (1 or 2). Default: 1. "
+			     "Using 2 doubles the component's quad count and LOD flexibility."),
+			{ TEXT("1"), TEXT("2") })
+		.NumberArg(TEXT("scale_x"),
+			TEXT("Landscape scale on X axis in cm per quad (default: 100). "
+			     "At scale 100 each quad = 1m in world space."))
+		.NumberArg(TEXT("scale_y"),
+			TEXT("Landscape scale on Y axis in cm per quad (default: 100)."))
+		.NumberArg(TEXT("scale_z"),
+			TEXT("Landscape Z scale controlling height range (default: 100). "
+			     "Actual height range in cm = +/- 256 * scale_z."))
+		.StringArg(TEXT("label"),
+			TEXT("Actor label shown in the World Outliner (default: 'Landscape')."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -527,23 +518,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				FinalLocation.X, FinalLocation.Y, FinalLocation.Z
 			));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_landscape_material - Assign a material to a landscape
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the landscape actor"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("material_path"), TEXT("Content path of the material to assign (e.g., '/Game/Materials/M_Landscape')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_landscape_material");
-		Def.Description = TEXT("Assign a material to a landscape actor's LandscapeMaterial slot. The material should be a landscape-compatible material with layer blend nodes for paint layers.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_landscape_material")
+		.Description(TEXT("Assign a material to a landscape actor's LandscapeMaterial slot. The material should be a landscape-compatible material with layer blend nodes for paint layers."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the landscape actor"), true)
+		.StringArg(TEXT("material_path"), TEXT("Content path of the material to assign (e.g., '/Game/Materials/M_Landscape')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName, MaterialPath;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName)) return FMCPToolResult::Error(TEXT("actor_name required"));
@@ -567,8 +551,6 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Assigned material '%s' to landscape '%s'"),
 				*Material->GetName(), *ActorName));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 } // void RegisterAll
 

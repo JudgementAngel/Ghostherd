@@ -1,5 +1,9 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPEnvironmentTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "Editor.h"
@@ -31,11 +35,8 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
 }
 
 void RegisterAll(FMCPToolRegistry& Registry)
@@ -43,26 +44,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// set_post_process_settings - Configure PostProcessVolume
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the PostProcessVolume actor"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("bloom_intensity"), TEXT("Bloom intensity (0-8, default: 0.675)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("bloom_threshold"), TEXT("Bloom threshold (-1 to 8)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("exposure_compensation"), TEXT("Exposure compensation EV (-15 to 15)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("exposure_min_brightness"), TEXT("Auto exposure min brightness"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("exposure_max_brightness"), TEXT("Auto exposure max brightness"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("vignette_intensity"), TEXT("Vignette intensity (0-1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("grain_intensity"), TEXT("Film grain intensity (0-1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("ao_intensity"), TEXT("Ambient occlusion intensity (0-1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("ao_radius"), TEXT("Ambient occlusion radius in cm"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("infinite_extent"), TEXT("Make this an unbound (infinite extent) volume"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_post_process_settings");
-		Def.Description = TEXT("Set bloom, exposure, color grading, AO, and other post-process settings on a PostProcessVolume. Only provided parameters are changed.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_post_process_settings")
+		.Description(TEXT("Set bloom, exposure, color grading, AO, and other post-process settings on a PostProcessVolume. Only provided parameters are changed."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the PostProcessVolume actor"), true)
+		.NumberArg(TEXT("bloom_intensity"), TEXT("Bloom intensity (0-8, default: 0.675)"))
+		.NumberArg(TEXT("bloom_threshold"), TEXT("Bloom threshold (-1 to 8)"))
+		.NumberArg(TEXT("exposure_compensation"), TEXT("Exposure compensation EV (-15 to 15)"))
+		.NumberArg(TEXT("exposure_min_brightness"), TEXT("Auto exposure min brightness"))
+		.NumberArg(TEXT("exposure_max_brightness"), TEXT("Auto exposure max brightness"))
+		.NumberArg(TEXT("vignette_intensity"), TEXT("Vignette intensity (0-1)"))
+		.NumberArg(TEXT("grain_intensity"), TEXT("Film grain intensity (0-1)"))
+		.NumberArg(TEXT("ao_intensity"), TEXT("Ambient occlusion intensity (0-1)"))
+		.NumberArg(TEXT("ao_radius"), TEXT("Ambient occlusion radius in cm"))
+		.BoolArg(TEXT("infinite_extent"), TEXT("Make this an unbound (infinite extent) volume"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -149,30 +145,23 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Updated %d post-process settings on '%s'"), Changed, *ActorName));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_fog_settings - Configure ExponentialHeightFog
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the ExponentialHeightFog actor"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("fog_density"), TEXT("Fog density (0-1, default: 0.02)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("fog_height_falloff"), TEXT("Height falloff (0-2, default: 0.2)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("fog_max_opacity"), TEXT("Maximum opacity (0-1, default: 1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("start_distance"), TEXT("Start distance in cm (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("color_r"), TEXT("Inscattering color red (0-1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("color_g"), TEXT("Inscattering color green (0-1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("color_b"), TEXT("Inscattering color blue (0-1)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("volumetric_fog"), TEXT("Enable volumetric fog"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_fog_settings");
-		Def.Description = TEXT("Configure ExponentialHeightFog density, color, falloff, and volumetric fog settings.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_fog_settings")
+		.Description(TEXT("Configure ExponentialHeightFog density, color, falloff, and volumetric fog settings."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the ExponentialHeightFog actor"), true)
+		.NumberArg(TEXT("fog_density"), TEXT("Fog density (0-1, default: 0.02)"))
+		.NumberArg(TEXT("fog_height_falloff"), TEXT("Height falloff (0-2, default: 0.2)"))
+		.NumberArg(TEXT("fog_max_opacity"), TEXT("Maximum opacity (0-1, default: 1)"))
+		.NumberArg(TEXT("start_distance"), TEXT("Start distance in cm (default: 0)"))
+		.NumberArg(TEXT("color_r"), TEXT("Inscattering color red (0-1)"))
+		.NumberArg(TEXT("color_g"), TEXT("Inscattering color green (0-1)"))
+		.NumberArg(TEXT("color_b"), TEXT("Inscattering color blue (0-1)"))
+		.BoolArg(TEXT("volumetric_fog"), TEXT("Enable volumetric fog"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -235,30 +224,23 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Updated %d fog settings on '%s'"), Changed, *ActorName));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_sky_atmosphere - Configure SkyAtmosphere component
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor with SkyAtmosphereComponent"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("rayleigh_scattering_r"), TEXT("Rayleigh scattering red (default: 0.0058)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("rayleigh_scattering_g"), TEXT("Rayleigh scattering green (default: 0.01355)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("rayleigh_scattering_b"), TEXT("Rayleigh scattering blue (default: 0.0331)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("rayleigh_exponential_distribution"), TEXT("Rayleigh exponential distribution (default: 8)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("mie_scattering_scale"), TEXT("Mie scattering scale (default: 0.003996)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("mie_absorption_scale"), TEXT("Mie absorption scale (default: 0.000444)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("mie_anisotropy"), TEXT("Mie anisotropy (0-0.999, default: 0.8)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("atmosphere_height"), TEXT("Atmosphere height in km (default: 60)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_sky_atmosphere");
-		Def.Description = TEXT("Configure SkyAtmosphere scattering, absorption, and height parameters for realistic sky rendering.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_sky_atmosphere")
+		.Description(TEXT("Configure SkyAtmosphere scattering, absorption, and height parameters for realistic sky rendering."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor with SkyAtmosphereComponent"), true)
+		.NumberArg(TEXT("rayleigh_scattering_r"), TEXT("Rayleigh scattering red (default: 0.0058)"))
+		.NumberArg(TEXT("rayleigh_scattering_g"), TEXT("Rayleigh scattering green (default: 0.01355)"))
+		.NumberArg(TEXT("rayleigh_scattering_b"), TEXT("Rayleigh scattering blue (default: 0.0331)"))
+		.NumberArg(TEXT("rayleigh_exponential_distribution"), TEXT("Rayleigh exponential distribution (default: 8)"))
+		.NumberArg(TEXT("mie_scattering_scale"), TEXT("Mie scattering scale (default: 0.003996)"))
+		.NumberArg(TEXT("mie_absorption_scale"), TEXT("Mie absorption scale (default: 0.000444)"))
+		.NumberArg(TEXT("mie_anisotropy"), TEXT("Mie anisotropy (0-0.999, default: 0.8)"))
+		.NumberArg(TEXT("atmosphere_height"), TEXT("Atmosphere height in km (default: 60)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -319,34 +301,27 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Updated %d atmosphere settings on '%s'"), Changed, *ActorName));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_light_properties - Unified light configuration
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the light actor"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("intensity"), TEXT("Light intensity (in candelas for point/spot, lux for directional)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("color_r"), TEXT("Light color red (0-1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("color_g"), TEXT("Light color green (0-1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("color_b"), TEXT("Light color blue (0-1)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("temperature"), TEXT("Color temperature in Kelvin (1000-15000)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("use_temperature"), TEXT("Use color temperature instead of color"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("attenuation_radius"), TEXT("Attenuation radius in cm (point/spot lights)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("source_radius"), TEXT("Source radius for soft shadows (cm)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("cast_shadows"), TEXT("Enable shadow casting"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("inner_cone_angle"), TEXT("Spot light inner cone angle (degrees)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("outer_cone_angle"), TEXT("Spot light outer cone angle (degrees)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("indirect_lighting_intensity"), TEXT("Indirect lighting intensity multiplier"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_light_properties");
-		Def.Description = TEXT("Configure light properties: intensity, color, temperature, shadows, attenuation. Works on PointLight, SpotLight, DirectionalLight, and SkyLight actors.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_light_properties")
+		.Description(TEXT("Configure light properties: intensity, color, temperature, shadows, attenuation. Works on PointLight, SpotLight, DirectionalLight, and SkyLight actors."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the light actor"), true)
+		.NumberArg(TEXT("intensity"), TEXT("Light intensity (in candelas for point/spot, lux for directional)"))
+		.NumberArg(TEXT("color_r"), TEXT("Light color red (0-1)"))
+		.NumberArg(TEXT("color_g"), TEXT("Light color green (0-1)"))
+		.NumberArg(TEXT("color_b"), TEXT("Light color blue (0-1)"))
+		.NumberArg(TEXT("temperature"), TEXT("Color temperature in Kelvin (1000-15000)"))
+		.BoolArg(TEXT("use_temperature"), TEXT("Use color temperature instead of color"))
+		.NumberArg(TEXT("attenuation_radius"), TEXT("Attenuation radius in cm (point/spot lights)"))
+		.NumberArg(TEXT("source_radius"), TEXT("Source radius for soft shadows (cm)"))
+		.BoolArg(TEXT("cast_shadows"), TEXT("Enable shadow casting"))
+		.NumberArg(TEXT("inner_cone_angle"), TEXT("Spot light inner cone angle (degrees)"))
+		.NumberArg(TEXT("outer_cone_angle"), TEXT("Spot light outer cone angle (degrees)"))
+		.NumberArg(TEXT("indirect_lighting_intensity"), TEXT("Indirect lighting intensity multiplier"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -483,8 +458,6 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Updated %d light properties on '%s'"), Changed, *ActorName));
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPEnvironmentTools

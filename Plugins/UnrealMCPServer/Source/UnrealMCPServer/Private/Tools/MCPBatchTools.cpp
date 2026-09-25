@@ -1,6 +1,10 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPBatchTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Editor.h"
 #include "Engine/World.h"
@@ -21,11 +25,8 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
 }
 
 void RegisterAll(FMCPToolRegistry& Registry)
@@ -33,31 +34,33 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// batch_transform - Move/rotate/scale multiple actors at once
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("actor_names"), TEXT("Array of actor labels to transform"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("X position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Y position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Z position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("pitch"), TEXT("Pitch rotation in degrees"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("yaw"), TEXT("Yaw rotation in degrees"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("roll"), TEXT("Roll rotation in degrees"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_x"), TEXT("X scale"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_y"), TEXT("Y scale"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_z"), TEXT("Z scale"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("relative"), TEXT("If true, values are added to current transform. If false, values are set absolutely (default: false)."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("batch_transform");
-		Def.Description = TEXT("Apply the same transform change to multiple actors at once. Only provided fields are changed; omitted fields keep their current values.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "batch_transform")
+		.Description(TEXT("Apply the same transform change to multiple actors at once. Only provided fields are changed; omitted fields keep their current values."))
+		.Idempotent()
+		.StringArrayArg(TEXT("actor_names"), TEXT("Array of actor labels to transform"), true)
+		.NumberArg(TEXT("x"), TEXT("X position"))
+		.NumberArg(TEXT("y"), TEXT("Y position"))
+		.NumberArg(TEXT("z"), TEXT("Z position"))
+		.NumberArg(TEXT("pitch"), TEXT("Pitch rotation in degrees"))
+		.NumberArg(TEXT("yaw"), TEXT("Yaw rotation in degrees"))
+		.NumberArg(TEXT("roll"), TEXT("Roll rotation in degrees"))
+		.NumberArg(TEXT("scale_x"), TEXT("X scale"))
+		.NumberArg(TEXT("scale_y"), TEXT("Y scale"))
+		.NumberArg(TEXT("scale_z"), TEXT("Z scale"))
+		.BoolArg(TEXT("relative"), TEXT("If true, values are added to current transform. If false, values are set absolutely (default: false)."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
 
-			TArray<TSharedPtr<FJsonValue>> Names = Args->GetArrayField(TEXT("actor_names"));
+			// v4 Phase 3: TryGet avoids LogJson warnings on missing field;
+			// the existing empty-checks below handle the error path.
+			TArray<TSharedPtr<FJsonValue>> Names;
+			if (const TArray<TSharedPtr<FJsonValue>>* NamesPtr = nullptr;
+				Args->TryGetArrayField(TEXT("actor_names"), NamesPtr) && NamesPtr)
+			{
+				Names = *NamesPtr;
+			}
 			if (Names.Num() == 0) return FMCPToolResult::Error(TEXT("No actor names provided"));
 
 			bool bRelative = false;
@@ -71,17 +74,34 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				if (Val->TryGetString(Name)) TargetNames.Add(Name);
 			}
 
-			// Find matching actors
-			TArray<AActor*> Actors;
+			// v4 Phase 0 (bug fix): resolve every requested actor BEFORE opening the
+			// transaction. v3 transformed whatever subset existed and committed it,
+			// leaving agents with silent partial application they couldn't detect.
+			// Batch mutations are now all-or-nothing.
+			TMap<FString, AActor*> Resolved;
 			for (TActorIterator<AActor> It(World); It; ++It)
 			{
 				if (TargetNames.Contains((*It)->GetActorLabel()))
 				{
-					Actors.Add(*It);
+					Resolved.Add((*It)->GetActorLabel(), *It);
 				}
 			}
 
-			if (Actors.Num() == 0) return FMCPToolResult::Error(TEXT("No matching actors found"));
+			TArray<FString> Missing;
+			for (const FString& Name : TargetNames)
+			{
+				if (!Resolved.Contains(Name)) Missing.Add(Name);
+			}
+			if (Missing.Num() > 0)
+			{
+				return FMCPToolResult::ErrorStructured(EMCPError::NotFound,
+					FString::Printf(TEXT("%d of %d actors not found: %s. Nothing was modified."),
+						Missing.Num(), TargetNames.Num(), *FString::Join(Missing, TEXT(", "))),
+					TEXT("Batch tools are all-or-nothing. Fix the labels (find_actors helps) and retry."));
+			}
+
+			TArray<AActor*> Actors;
+			Resolved.GenerateValueArray(Actors);
 
 			GEditor->BeginTransaction(FText::FromString(TEXT("MCP: Batch Transform")));
 
@@ -127,26 +147,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			GEditor->EndTransaction();
 
-			return FMCPToolResult::Success(FString::Printf(TEXT("Transformed %d of %d requested actors"), Transformed, TargetNames.Num()));
+			return FMCPToolResult::Success(FString::Printf(TEXT("Transformed all %d requested actors"), Transformed));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// batch_set_property - Set same property on multiple actors
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("actor_names"), TEXT("Array of actor labels"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("property_name"), TEXT("Name of the UPROPERTY to set"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("property_value"), TEXT("New value as a string (parsed by UE property system)"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("batch_set_property");
-		Def.Description = TEXT("Set the same property value on multiple actors at once. Uses UE's property system for value parsing.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "batch_set_property")
+		.Description(TEXT("Set the same property value on multiple actors at once. Uses UE's property system for value parsing."))
+		.Idempotent()
+		.StringArrayArg(TEXT("actor_names"), TEXT("Array of actor labels"), true)
+		.StringArg(TEXT("property_name"), TEXT("Name of the UPROPERTY to set"), true)
+		.StringArg(TEXT("property_value"), TEXT("New value as a string (parsed by UE property system)"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -155,7 +168,14 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			if (!Args->TryGetStringField(TEXT("property_name"), PropName)) return FMCPToolResult::Error(TEXT("property_name required"));
 			if (!Args->TryGetStringField(TEXT("property_value"), PropValue)) return FMCPToolResult::Error(TEXT("property_value required"));
 
-			TArray<TSharedPtr<FJsonValue>> Names = Args->GetArrayField(TEXT("actor_names"));
+			// v4 Phase 3: TryGet avoids LogJson warnings on missing field;
+			// the existing empty-checks below handle the error path.
+			TArray<TSharedPtr<FJsonValue>> Names;
+			if (const TArray<TSharedPtr<FJsonValue>>* NamesPtr = nullptr;
+				Args->TryGetArrayField(TEXT("actor_names"), NamesPtr) && NamesPtr)
+			{
+				Names = *NamesPtr;
+			}
 			if (Names.Num() == 0) return FMCPToolResult::Error(TEXT("No actor names provided"));
 
 			TSet<FString> TargetNames;
@@ -165,23 +185,49 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				if (Val->TryGetString(Name)) TargetNames.Add(Name);
 			}
 
-			GEditor->BeginTransaction(FText::FromString(TEXT("MCP: Batch Set Property")));
-
-			int32 Updated = 0;
-			TArray<FString> Errors;
-
+			// v4 Phase 0 (bug fix): validate every target BEFORE the transaction —
+			// actor must exist and expose the property. v3 applied whatever subset
+			// worked and reported Success anyway; partial failures were invisible
+			// and irreversible. Now: pre-validate, and roll back if any apply fails.
+			TMap<FString, AActor*> Resolved;
 			for (TActorIterator<AActor> It(World); It; ++It)
 			{
-				AActor* Actor = *It;
-				if (!Actor || !TargetNames.Contains(Actor->GetActorLabel()))
-					continue;
-
-				FProperty* Prop = Actor->GetClass()->FindPropertyByName(FName(*PropName));
-				if (!Prop)
+				if (*It && TargetNames.Contains((*It)->GetActorLabel()))
 				{
-					Errors.Add(FString::Printf(TEXT("'%s': property '%s' not found"), *Actor->GetActorLabel(), *PropName));
-					continue;
+					Resolved.Add((*It)->GetActorLabel(), *It);
 				}
+			}
+
+			TArray<FString> PreflightErrors;
+			for (const FString& Name : TargetNames)
+			{
+				AActor* const* Found = Resolved.Find(Name);
+				if (!Found)
+				{
+					PreflightErrors.Add(FString::Printf(TEXT("'%s': actor not found"), *Name));
+				}
+				else if (!(*Found)->GetClass()->FindPropertyByName(FName(*PropName)))
+				{
+					PreflightErrors.Add(FString::Printf(TEXT("'%s': property '%s' not found on class %s"),
+						*Name, *PropName, *(*Found)->GetClass()->GetName()));
+				}
+			}
+			if (PreflightErrors.Num() > 0)
+			{
+				return FMCPToolResult::ErrorStructured(EMCPError::NotFound,
+					FString::Printf(TEXT("Pre-validation failed for %d of %d actors. Nothing was modified.\n%s"),
+						PreflightErrors.Num(), TargetNames.Num(), *FString::Join(PreflightErrors, TEXT("\n"))),
+					TEXT("Batch tools are all-or-nothing. Fix the listed items and retry."));
+			}
+
+			const int32 TxIndex = GEditor->BeginTransaction(FText::FromString(TEXT("MCP: Batch Set Property")));
+
+			int32 Updated = 0;
+			TArray<FString> ApplyErrors;
+			for (const auto& Pair : Resolved)
+			{
+				AActor* Actor = Pair.Value;
+				FProperty* Prop = Actor->GetClass()->FindPropertyByName(FName(*PropName));
 
 				Actor->Modify();
 				void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(Actor);
@@ -192,45 +238,44 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				}
 				else
 				{
-					Errors.Add(FString::Printf(TEXT("'%s': failed to parse value"), *Actor->GetActorLabel()));
+					ApplyErrors.Add(FString::Printf(TEXT("'%s': value '%s' could not be parsed as %s"),
+						*Pair.Key, *PropValue, *Prop->GetClass()->GetName()));
 				}
+			}
+
+			if (ApplyErrors.Num() > 0)
+			{
+				// Roll the whole batch back so the level isn't left half-updated.
+				GEditor->CancelTransaction(TxIndex);
+				return FMCPToolResult::ErrorStructured(EMCPError::OutOfRange,
+					FString::Printf(TEXT("Apply failed on %d of %d actors — the entire batch was rolled back.\n%s"),
+						ApplyErrors.Num(), Resolved.Num(), *FString::Join(ApplyErrors, TEXT("\n"))),
+					TEXT("Check the value format against the property type (e.g. FVector wants 'X=0,Y=0,Z=0')."));
 			}
 
 			GEditor->EndTransaction();
 
-			FString Result = FString::Printf(TEXT("Set '%s' = '%s' on %d of %d actors"), *PropName, *PropValue, Updated, TargetNames.Num());
-			if (Errors.Num() > 0)
-			{
-				Result += TEXT("\nErrors: ") + FString::Join(Errors, TEXT("; "));
-			}
-			return FMCPToolResult::Success(Result);
+			return FMCPToolResult::Success(FString::Printf(TEXT("Set '%s' = '%s' on all %d actors"), *PropName, *PropValue, Updated));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// find_actors - Advanced actor query with combined filters
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("class_filter"), TEXT("Filter by class name (substring match)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_pattern"), TEXT("Filter by actor label (substring match, case-insensitive)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("tag"), TEXT("Filter by actor tag (exact match)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("near_x"), TEXT("Center X for proximity search"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("near_y"), TEXT("Center Y for proximity search"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("near_z"), TEXT("Center Z for proximity search"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("radius"), TEXT("Search radius around near_x/y/z (in cm)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("hidden_only"), TEXT("Only return hidden actors"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("visible_only"), TEXT("Only return visible actors"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("limit"), TEXT("Maximum results (default: 100)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("find_actors");
-		Def.Description = TEXT("Advanced actor query combining class, name, tag, and proximity filters. More powerful than list_actors for targeted searches.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "find_actors")
+		.Description(TEXT("Advanced actor query combining class, name, tag, and proximity filters. More powerful than list_actors for targeted searches."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("class_filter"), TEXT("Filter by class name (substring match)"))
+		.StringArg(TEXT("name_pattern"), TEXT("Filter by actor label (substring match, case-insensitive)"))
+		.StringArg(TEXT("tag"), TEXT("Filter by actor tag (exact match)"))
+		.NumberArg(TEXT("near_x"), TEXT("Center X for proximity search"))
+		.NumberArg(TEXT("near_y"), TEXT("Center Y for proximity search"))
+		.NumberArg(TEXT("near_z"), TEXT("Center Z for proximity search"))
+		.NumberArg(TEXT("radius"), TEXT("Search radius around near_x/y/z (in cm)"))
+		.BoolArg(TEXT("hidden_only"), TEXT("Only return hidden actors"))
+		.BoolArg(TEXT("visible_only"), TEXT("Only return visible actors"))
+		.IntArg(TEXT("limit"), TEXT("Maximum results (default: 100)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -329,10 +374,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Output->SetNumberField(TEXT("returned"), Results.Num());
 			Output->SetArrayField(TEXT("actors"), Results);
 
-			return FMCPToolResult::Success(JsonToString(Output));
+			return FMCPToolResult::SuccessStructured(JsonToString(Output), Output);
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPBatchTools

@@ -1,5 +1,9 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPPCGTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "Editor.h"
@@ -18,6 +22,9 @@
 #include "PCGCommon.h"
 #include "Elements/PCGStaticMeshSpawner.h"
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
+#include "Common/MCPAssetCreate.h"
+#include "MCPScenarios.h"
+#include "MCPRequestContext.h"
 
 namespace MCPPCGTools
 {
@@ -33,11 +40,9 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
+
 }
 
 void RegisterAll(FMCPToolRegistry& Registry)
@@ -45,22 +50,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// list_pcg_graphs - List all PCG Graph assets in the project
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path"),
-			TEXT("Content path to search under (e.g., '/Game/', '/Game/PCG/'). Default: '/Game/'"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_filter"),
-			TEXT("Optional substring filter applied to asset names (case-insensitive)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("limit"),
-			TEXT("Maximum number of results to return (default: 100)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_pcg_graphs");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "list_pcg_graphs")
+		.Description(TEXT(
 			"List all PCG Graph assets found in the project content browser. "
-			"Optionally filter by path and/or name substring. Returns asset name and full content path for each graph.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Optionally filter by path and/or name substring. Returns asset name and full content path for each graph."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("path"),
+			TEXT("Content path to search under (e.g., '/Game/', '/Game/PCG/'). Default: '/Game/'"))
+		.StringArg(TEXT("name_filter"),
+			TEXT("Optional substring filter applied to asset names (case-insensitive)"))
+		.IntArg(TEXT("limit"),
+			TEXT("Maximum number of results to return (default: 100)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FAssetRegistryModule& AssetRegistryModule =
 				FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -120,46 +122,37 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetNumberField(TEXT("total_found"), TotalFound);
 			Result->SetStringField(TEXT("search_path"), SearchPath);
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// spawn_pcg_actor - Spawn an actor with a PCG component in the level
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("graph_path"),
-			TEXT("Optional content path to a PCG Graph asset to assign (e.g., '/Game/PCG/MyGraph.MyGraph')"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"),
-			TEXT("World X position to spawn the actor (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"),
-			TEXT("World Y position to spawn the actor (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"),
-			TEXT("World Z position to spawn the actor (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_x"),
-			TEXT("Scale X applied to the actor, effectively controlling PCG volume extent (default: 1.0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_y"),
-			TEXT("Scale Y applied to the actor, effectively controlling PCG volume extent (default: 1.0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("scale_z"),
-			TEXT("Scale Z applied to the actor, effectively controlling PCG volume extent (default: 1.0)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("label"),
-			TEXT("Optional actor label shown in the scene outliner"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("seed"),
-			TEXT("Optional integer seed to set on the PCG component for deterministic generation"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("spawn_pcg_actor");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "spawn_pcg_actor")
+		.Description(TEXT(
 			"Spawn a new Actor with a UPCGComponent in the current level. "
 			"Optionally assign a PCG Graph asset to the component. "
 			"The actor's scale is set to the provided scale values, which determines the effective "
-			"PCG volume bounds. Use execute_pcg after spawning to trigger graph generation.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"PCG volume bounds. Use execute_pcg after spawning to trigger graph generation."))
+		.StringArg(TEXT("graph_path"),
+			TEXT("Optional content path to a PCG Graph asset to assign (e.g., '/Game/PCG/MyGraph.MyGraph')"))
+		.NumberArg(TEXT("x"),
+			TEXT("World X position to spawn the actor (default: 0)"))
+		.NumberArg(TEXT("y"),
+			TEXT("World Y position to spawn the actor (default: 0)"))
+		.NumberArg(TEXT("z"),
+			TEXT("World Z position to spawn the actor (default: 0)"))
+		.NumberArg(TEXT("scale_x"),
+			TEXT("Scale X applied to the actor, effectively controlling PCG volume extent (default: 1.0)"))
+		.NumberArg(TEXT("scale_y"),
+			TEXT("Scale Y applied to the actor, effectively controlling PCG volume extent (default: 1.0)"))
+		.NumberArg(TEXT("scale_z"),
+			TEXT("Scale Z applied to the actor, effectively controlling PCG volume extent (default: 1.0)"))
+		.StringArg(TEXT("label"),
+			TEXT("Optional actor label shown in the scene outliner"))
+		.IntArg(TEXT("seed"),
+			TEXT("Optional integer seed to set on the PCG component for deterministic generation"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -254,26 +247,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				SpawnScale.X, SpawnScale.Y, SpawnScale.Z,
 				*GraphName));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// execute_pcg - Trigger PCG generation on an actor's PCG component
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"),
-			TEXT("Label of the actor containing the UPCGComponent to execute"),
-			/*bRequired=*/true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("execute_pcg");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "execute_pcg")
+		.LongRunning()
+		.Description(TEXT(
 			"Trigger PCG graph generation on the UPCGComponent attached to the named actor. "
 			"The component's assigned PCG Graph will be executed immediately with a forced regeneration. "
-			"Use spawn_pcg_actor to create a PCG actor first, then call this tool to run the graph.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Use spawn_pcg_actor to create a PCG actor first, then call this tool to run the graph."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"),
+			TEXT("Label of the actor containing the UPCGComponent to execute"),
+			/*bRequired=*/true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -326,27 +314,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				*AssignedGraph->GetName(),
 				PCGComponent->Seed));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_pcg_info - Get info about the PCG component on an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"),
-			TEXT("Label of the actor to inspect for a UPCGComponent"),
-			/*bRequired=*/true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_pcg_info");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "get_pcg_info")
+		.Description(TEXT(
 			"Retrieve information about the UPCGComponent attached to the named actor. "
 			"Reports the assigned graph name and path, seed, generation trigger type, "
-			"actor location and scale (which defines the effective generation bounds).");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"actor location and scale (which defines the effective generation bounds)."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"),
+			TEXT("Label of the actor to inspect for a UPCGComponent"),
+			/*bRequired=*/true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -422,31 +404,23 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			ScaleObj->SetNumberField(TEXT("z"), ActorScale.Z);
 			Result->SetObjectField(TEXT("scale"), ScaleObj);
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_pcg_graph - Create a new PCG Graph asset in the content browser
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path for the new PCG Graph asset (e.g., '/Game/PCG/MyGraph'). "
-			     "Do not include a file extension."),
-			/*bRequired=*/true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_pcg_graph");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "create_pcg_graph")
+		.Description(TEXT(
 			"Create a new UPCGGraph asset in the content browser at the specified path. "
 			"The graph is saved immediately and registered with the asset registry. "
-			"Use add_pcg_node to populate the graph with nodes after creation.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Use add_pcg_node to populate the graph with nodes after creation."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path for the new PCG Graph asset (e.g., '/Game/PCG/MyGraph'). "
+			     "Do not include a file extension."),
+			/*bRequired=*/true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -496,6 +470,9 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			FAssetRegistryModule& AssetRegistryModule =
 				FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 			AssetRegistryModule.AssetCreated(NewGraph);
+			// Journal the creation so run_tool_script can report truthfully that this
+			// asset survives a rollback (UE package creation is not transactional).
+			MCPCommon::NoteAssetCreated(PackageName);
 
 			// Mark dirty and save the package to disk.
 			Package->MarkPackageDirty();
@@ -525,27 +502,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created PCG Graph asset '%s' at path '%s'. Use add_pcg_node to add nodes."),
 				*AssetName, *PackageName));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_pcg_graph_nodes - List all nodes in a PCG Graph asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("graph_path"),
-			TEXT("Content path of the PCG Graph asset (e.g., '/Game/PCG/MyGraph.MyGraph')"),
-			/*bRequired=*/true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_pcg_graph_nodes");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "get_pcg_graph_nodes")
+		.Description(TEXT(
 			"List all nodes contained in a PCG Graph asset. "
 			"Returns the node index, display title, settings class name, and editor position "
-			"for each node. The node index can be used with add_pcg_node and connect_pcg_nodes.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"for each node. The node index can be used with add_pcg_node and connect_pcg_nodes."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("graph_path"),
+			TEXT("Content path of the PCG Graph asset (e.g., '/Game/PCG/MyGraph.MyGraph')"),
+			/*bRequired=*/true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString GraphPath;
 			if (!Args->TryGetStringField(TEXT("graph_path"), GraphPath))
@@ -614,40 +585,31 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetNumberField(TEXT("node_count"), NodeArray.Num());
 			Result->SetArrayField(TEXT("nodes"), NodeArray);
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// add_pcg_node - Add a node to a PCG Graph
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("graph_path"),
+	MCP_TOOL(Registry, "add_pcg_node")
+		.Description(TEXT(
+			"Add a new node to a PCG Graph by specifying the UPCGSettings subclass to use. "
+			"The node is appended to the graph and the package is marked dirty. "
+			"Use get_pcg_graph_nodes to retrieve node indices for subsequent connect_pcg_nodes calls."))
+		.StringArg(TEXT("graph_path"),
 			TEXT("Content path of the PCG Graph asset (e.g., '/Game/PCG/MyGraph.MyGraph')"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("settings_class"),
+			/*bRequired=*/true)
+		.StringArg(TEXT("settings_class"),
 			TEXT("Name of the UPCGSettings subclass to instantiate. "
 			     "Common values: 'PCGSurfaceSamplerSettings', 'PCGStaticMeshSpawnerSettings', "
 			     "'PCGDensityFilterSettings', 'PCGPointFilterSettings', 'PCGSelfPruningSettings'. "
 			     "The 'U' prefix is optional."),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("node_x"),
-			TEXT("Horizontal position of the node in the graph editor (default: 0)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("node_y"),
-			TEXT("Vertical position of the node in the graph editor (default: 0)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("add_pcg_node");
-		Def.Description = TEXT(
-			"Add a new node to a PCG Graph by specifying the UPCGSettings subclass to use. "
-			"The node is appended to the graph and the package is marked dirty. "
-			"Use get_pcg_graph_nodes to retrieve node indices for subsequent connect_pcg_nodes calls.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			/*bRequired=*/true)
+		.IntArg(TEXT("node_x"),
+			TEXT("Horizontal position of the node in the graph editor (default: 0)"))
+		.IntArg(TEXT("node_y"),
+			TEXT("Vertical position of the node in the graph editor (default: 0)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString GraphPath;
 			if (!Args->TryGetStringField(TEXT("graph_path"), GraphPath))
@@ -736,37 +698,30 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				NewNodeIndex,
 				NodeX, NodeY));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// connect_pcg_nodes - Connect two nodes in a PCG Graph
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("graph_path"),
-			TEXT("Content path of the PCG Graph asset (e.g., '/Game/PCG/MyGraph.MyGraph')"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("source_node_index"),
-			TEXT("Zero-based index of the source (output) node as returned by get_pcg_graph_nodes"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("source_pin_label"),
-			TEXT("Name of the output pin on the source node (default: 'Out')"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("target_node_index"),
-			TEXT("Zero-based index of the target (input) node as returned by get_pcg_graph_nodes"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("target_pin_label"),
-			TEXT("Name of the input pin on the target node (default: 'In')"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("connect_pcg_nodes");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "connect_pcg_nodes")
+		.Description(TEXT(
 			"Connect an output pin of one PCG node to an input pin of another PCG node in the same graph. "
 			"Node indices correspond to the array order returned by get_pcg_graph_nodes. "
 			"Default pin names 'Out' and 'In' are used when source_pin_label / target_pin_label are omitted. "
-			"The graph package is marked dirty after a successful connection.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"The graph package is marked dirty after a successful connection."))
+		.StringArg(TEXT("graph_path"),
+			TEXT("Content path of the PCG Graph asset (e.g., '/Game/PCG/MyGraph.MyGraph')"),
+			/*bRequired=*/true)
+		.IntArg(TEXT("source_node_index"),
+			TEXT("Zero-based index of the source (output) node as returned by get_pcg_graph_nodes"),
+			/*bRequired=*/true)
+		.StringArg(TEXT("source_pin_label"),
+			TEXT("Name of the output pin on the source node (default: 'Out')"))
+		.IntArg(TEXT("target_node_index"),
+			TEXT("Zero-based index of the target (input) node as returned by get_pcg_graph_nodes"),
+			/*bRequired=*/true)
+		.StringArg(TEXT("target_pin_label"),
+			TEXT("Name of the input pin on the target node (default: 'In')"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString GraphPath;
 			if (!Args->TryGetStringField(TEXT("graph_path"), GraphPath))
@@ -906,31 +861,24 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TargetIdx, *TargetPinLabel,
 				*Graph->GetName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 		// ================================================================
 	// set_pcg_static_mesh_spawner_meshes - Set mesh entries on spawner
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("graph_path"),
-			TEXT("Content path of the PCG Graph asset (e.g., '/Game/PCG/MyGraph.MyGraph')"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("node_index"),
-			TEXT("Zero-based node index of the Static Mesh Spawner node in the graph."),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("mesh_paths"),
-			TEXT("Array of static mesh asset paths to assign to the spawner."),
-			/*bRequired=*/true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_pcg_static_mesh_spawner_meshes");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "set_pcg_static_mesh_spawner_meshes")
+		.Description(TEXT(
 			"Assign one or more static meshes to a PCG Static Mesh Spawner node using the weighted mesh selector. "
-			"Each mesh is added with equal weight. This is useful for completing PCG graphs created via MCP.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Each mesh is added with equal weight. This is useful for completing PCG graphs created via MCP."))
+		.StringArg(TEXT("graph_path"),
+			TEXT("Content path of the PCG Graph asset (e.g., '/Game/PCG/MyGraph.MyGraph')"),
+			/*bRequired=*/true)
+		.IntArg(TEXT("node_index"),
+			TEXT("Zero-based node index of the Static Mesh Spawner node in the graph."),
+			/*bRequired=*/true)
+		.StringArrayArg(TEXT("mesh_paths"),
+			TEXT("Array of static mesh asset paths to assign to the spawner."),
+			/*bRequired=*/true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString GraphPath;
 			if (!Args->TryGetStringField(TEXT("graph_path"), GraphPath))
@@ -1038,8 +986,49 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				*Graph->GetName(),
 				*MeshList));
 		});
-		Registry.RegisterTool(Def);
-	}
+	// ------------------------------------------------------------------
+	// run_pcg_generation (v5 increment 26, V5-25): cancellable generation as an owned operation.
+	// ------------------------------------------------------------------
+	MCP_TOOL(Registry, "run_pcg_generation")
+		.Description(TEXT("Generate a PCG component as an owned operation instead of a blocking call. Finds the actor's PCGComponent, starts GenerateLocal(force) and polls IsGenerating on the editor ticker; poll with get_editor_operation, cancel with cancel_editor_operation (the component's CancelGeneration is called and pcg_cancellation reports requested). The result carries generated (component flag), last_generated_bounds, generated_output_count (data collection entries) and dirty (package dirty flag). Requires Scene scope; PIE must be stopped."))
+		.RequiresPieOff()
+		.StringArg(TEXT("actor_path"), TEXT("Exact loaded actor path with a PCGComponent"), true)
+		.BoolArg(TEXT("force"), TEXT("Force regeneration even when already generated (default true)"))
+		.IntArg(TEXT("deadline_seconds"), TEXT("Operation deadline 1..600 (default 300)"))
+		.HandleCtx([](const TSharedPtr<FJsonObject>& Args, const FMCPRequestContext& Context) -> FMCPToolResult
+		{
+			if (!IsInGameThread()) return FMCPToolResult::ErrorStructured(EMCPError::RequiresGameThread, TEXT("PCG operations require the game thread"));
+			if (!Context.HasScope(EMCPScope::Scene)) return FMCPToolResult::ErrorStructured(EMCPError::ScopeDenied, TEXT("Scene scope required"));
+			AActor* Actor = FindObject<AActor>(nullptr, *Args->GetStringField(TEXT("actor_path")));
+			if (!Actor || !IsValid(Actor)) return FMCPToolResult::ErrorStructured(EMCPError::NotFound, TEXT("Actor not found: ") + Args->GetStringField(TEXT("actor_path")));
+			UPCGComponent* Comp = Actor->FindComponentByClass<UPCGComponent>();
+			if (!Comp) return FMCPToolResult::ErrorStructured(EMCPError::NotFound, TEXT("Actor has no PCGComponent"));
+			if (!Comp->GetGraph()) return FMCPToolResult::ErrorStructured(EMCPError::Unsupported, TEXT("PCGComponent has no graph assigned"));
+			const bool bForce = !Args->HasField(TEXT("force")) || Args->GetBoolField(TEXT("force"));
+			const double Deadline = Args->HasField(TEXT("deadline_seconds")) ? Args->GetNumberField(TEXT("deadline_seconds")) : 300.0;
+			TWeakObjectPtr<UPCGComponent> Weak = Comp;
+			struct FState { bool bStarted = false; FString Cancellation = TEXT("not_requested"); };
+			auto St = MakeShared<FState>();
+			auto Details = MakeShared<FJsonObject>(); Details->SetStringField(TEXT("actor_path"), Actor->GetPathName()); Details->SetStringField(TEXT("graph"), Comp->GetGraph()->GetPathName()); Details->SetBoolField(TEXT("force"), bForce);
+			FString Err;
+			const FString Id = MCPScenarios::StartDrivenOperation(Context, TEXT("pcg_generation"), TEXT("PCG ") + Actor->GetActorLabel(), Deadline,
+				[Weak, St, bForce](FMCPOperationTick& T)
+				{
+					UPCGComponent* C = Weak.Get();
+					auto Result = [&]() { auto R = MakeShared<FJsonObject>(); R->SetStringField(TEXT("pcg_cancellation"), St->Cancellation); if (C) { R->SetBoolField(TEXT("generated"), C->bGenerated); R->SetBoolField(TEXT("is_generating"), C->IsGenerating()); const FBox B = C->GetLastGeneratedBounds(); auto BJ = MakeShared<FJsonObject>(); BJ->SetBoolField(TEXT("valid"), B.IsValid != 0); BJ->SetStringField(TEXT("min"), B.Min.ToString()); BJ->SetStringField(TEXT("max"), B.Max.ToString()); R->SetObjectField(TEXT("last_generated_bounds"), BJ); R->SetNumberField(TEXT("generated_output_count"), C->GetGeneratedGraphOutput().TaggedData.Num()); R->SetBoolField(TEXT("dirty"), C->GetOutermost() && C->GetOutermost()->IsDirty()); } return R; };
+					if (!C || !IsValid(C)) { T.Finish(TEXT("failed"), TEXT("PCGComponent destroyed during generation"), Result()); return; }
+					if (T.bCancelRequested) { C->CancelGeneration(); St->Cancellation = TEXT("requested"); T.Event(TEXT("cancel"), TEXT("CancelGeneration called on the component")); T.Finish(TEXT("cancelled"), TEXT("Cancelled by owner"), Result()); return; }
+					if (!St->bStarted) { St->bStarted = true; C->GenerateLocal(bForce); T.Event(TEXT("generate_requested"), bForce ? TEXT("GenerateLocal(force)") : TEXT("GenerateLocal")); T.Progress(0.1, TEXT("generation requested")); return; }
+					if (C->IsGenerating()) { T.Progress(0.5, TEXT("generating")); return; }
+					T.Progress(1.0, TEXT("generation finished"));
+					T.Finish(C->bGenerated ? TEXT("succeeded") : TEXT("failed"), C->bGenerated ? FString() : TEXT("Component reports not generated after the task finished"), Result());
+				},
+				[Weak, St](const FString&) { if (UPCGComponent* C = Weak.Get()) { C->CancelGeneration(); St->Cancellation = TEXT("requested"); } },
+				Details, Err);
+			if (Id.IsEmpty()) return FMCPToolResult::ErrorStructured(EMCPError::Unsupported, Err);
+			return FMCPToolResult::SuccessStructured(FString::Printf(TEXT("PCG generation queued as %s; poll get_editor_operation."), *Id), MCPScenarios::DescribeOperation(Id, Context, false));
+		});
+
 }
 
 } // namespace MCPPCGTools

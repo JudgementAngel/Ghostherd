@@ -1,3 +1,5 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "MCPPromptProvider.h"
 
 FMCPPromptProvider& FMCPPromptProvider::Get()

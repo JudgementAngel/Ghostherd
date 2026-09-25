@@ -1,6 +1,10 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPAnimationTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Editor.h"
 #include "Engine/World.h"
@@ -28,11 +32,8 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
 }
 
 void RegisterAll(FMCPToolRegistry& Registry)
@@ -40,16 +41,12 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// set_skeletal_mesh - Set the skeletal mesh on an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor containing a SkeletalMeshComponent"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("mesh_path"), TEXT("Content path to the USkeletalMesh asset (e.g., '/Game/Characters/SK_Mannequin')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_skeletal_mesh");
-		Def.Description = TEXT("Set the skeletal mesh asset on an actor's SkeletalMeshComponent. Works on any actor that has a SkeletalMeshComponent (e.g., SkeletalMeshActor, Character). Wrap in an undo transaction.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_skeletal_mesh")
+		.Description(TEXT("Set the skeletal mesh asset on an actor's SkeletalMeshComponent. Works on any actor that has a SkeletalMeshComponent (e.g., SkeletalMeshActor, Character). Wrap in an undo transaction."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor containing a SkeletalMeshComponent"), true)
+		.StringArg(TEXT("mesh_path"), TEXT("Content path to the USkeletalMesh asset (e.g., '/Game/Characters/SK_Mannequin')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -81,23 +78,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Set skeletal mesh '%s' on actor '%s'"),
 				*SkelMesh->GetName(), *ActorName));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_animation_blueprint - Set the anim BP class on a skeletal mesh component
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor containing a SkeletalMeshComponent"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("anim_bp_path"), TEXT("Content path to the UAnimBlueprint asset (e.g., '/Game/Characters/ABP_Mannequin')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_animation_blueprint");
-		Def.Description = TEXT("Assign an Animation Blueprint to a SkeletalMeshComponent by loading the UAnimBlueprint asset, extracting its generated class, and calling SetAnimInstanceClass(). This determines how the skeleton is driven at runtime.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_animation_blueprint")
+		.Description(TEXT("Assign an Animation Blueprint to a SkeletalMeshComponent by loading the UAnimBlueprint asset, extracting its generated class, and calling SetAnimInstanceClass(). This determines how the skeleton is driven at runtime."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor containing a SkeletalMeshComponent"), true)
+		.StringArg(TEXT("anim_bp_path"), TEXT("Content path to the UAnimBlueprint asset (e.g., '/Game/Characters/ABP_Mannequin')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -133,25 +123,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Set AnimBlueprint '%s' (class: '%s') on actor '%s'"),
 				*AnimBP->GetName(), *AnimClass->GetName(), *ActorName));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// play_animation - Play a single animation asset on a skeletal mesh
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor containing a SkeletalMeshComponent"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("animation_path"), TEXT("Content path to the UAnimSequence asset (e.g., '/Game/Animations/AM_Run')"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("looping"), TEXT("Whether the animation should loop (default: false)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("play_rate"), TEXT("Playback rate multiplier; 1.0 = normal speed, 2.0 = double speed (default: 1.0)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("play_animation");
-		Def.Description = TEXT("Play a single UAnimSequence on an actor's SkeletalMeshComponent using AnimationSingleNode mode. This overrides any AnimBlueprint currently assigned. Useful for previewing animations directly in the editor viewport.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "play_animation")
+		.Description(TEXT("Play a single UAnimSequence on an actor's SkeletalMeshComponent using AnimationSingleNode mode. This overrides any AnimBlueprint currently assigned. Useful for previewing animations directly in the editor viewport."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor containing a SkeletalMeshComponent"), true)
+		.StringArg(TEXT("animation_path"), TEXT("Content path to the UAnimSequence asset (e.g., '/Game/Animations/AM_Run')"), true)
+		.BoolArg(TEXT("looping"), TEXT("Whether the animation should loop (default: false)"))
+		.NumberArg(TEXT("play_rate"), TEXT("Playback rate multiplier; 1.0 = normal speed, 2.0 = double speed (default: 1.0)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -196,22 +179,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				bLooping ? TEXT("true") : TEXT("false"),
 				PlayRate));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_skeleton_info - Get bone hierarchy and socket info for a skeletal mesh
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("mesh_path"), TEXT("Content path to the USkeletalMesh asset (e.g., '/Game/Characters/SK_Mannequin')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_skeleton_info");
-		Def.Description = TEXT("Retrieve structural information about a skeletal mesh asset: total bone count, the first 50 bone names in hierarchy order, socket count, socket names, and the mesh bounding box. Useful for animation rigging and attachment workflows.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_skeleton_info")
+		.Description(TEXT("Retrieve structural information about a skeletal mesh asset: total bone count, the first 50 bone names in hierarchy order, socket count, socket names, and the mesh bounding box. Useful for animation rigging and attachment workflows."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("mesh_path"), TEXT("Content path to the USkeletalMesh asset (e.g., '/Game/Characters/SK_Mannequin')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString MeshPath;
 			if (!Args->TryGetStringField(TEXT("mesh_path"), MeshPath))
@@ -300,28 +277,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			BoundsObj->SetNumberField(TEXT("sphere_radius"), Bounds.SphereRadius);
 			Result->SetObjectField(TEXT("bounds"), BoundsObj);
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// list_animation_assets - List AnimSequence and AnimMontage assets
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("skeleton_path"), TEXT("Optional content path to a USkeleton asset to filter results by skeleton (e.g., '/Game/Characters/SK_Mannequin_Skeleton')"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path"), TEXT("Content path prefix to search under (default: '/Game/')"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_filter"), TEXT("Optional substring filter applied to asset names (case-insensitive)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("limit"), TEXT("Maximum number of results to return (default: 100)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_animation_assets");
-		Def.Description = TEXT("List UAnimSequence and UAnimMontage assets found in the Asset Registry under a given content path. Optionally filter by skeleton asset or name substring. Returns asset name, path, type (Sequence or Montage), duration in seconds, and frame count.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "list_animation_assets")
+		.Description(TEXT("List UAnimSequence and UAnimMontage assets found in the Asset Registry under a given content path. Optionally filter by skeleton asset or name substring. Returns asset name, path, type (Sequence or Montage), duration in seconds, and frame count."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("skeleton_path"), TEXT("Optional content path to a USkeleton asset to filter results by skeleton (e.g., '/Game/Characters/SK_Mannequin_Skeleton')"))
+		.StringArg(TEXT("path"), TEXT("Content path prefix to search under (default: '/Game/')"))
+		.StringArg(TEXT("name_filter"), TEXT("Optional substring filter applied to asset names (case-insensitive)"))
+		.IntArg(TEXT("limit"), TEXT("Maximum number of results to return (default: 100)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString SearchPath = TEXT("/Game/");
 			Args->TryGetStringField(TEXT("path"), SearchPath);
@@ -359,6 +329,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Filter.ClassPaths.Add(UAnimSequence::StaticClass()->GetClassPathName());
 			Filter.ClassPaths.Add(UAnimMontage::StaticClass()->GetClassPathName());
 
+			// v4.6: filter by skeleton through the Asset Registry's "Skeleton" tag
+			// rather than by loading every candidate. Animation assets publish the
+			// tag as the skeleton's export-text name (the same query Persona's own
+			// asset pickers use), so the registry can reject non-matching assets
+			// before any package is touched. Previously this tool loaded EVERY
+			// AnimSequence and AnimMontage under the search path just to read a
+			// duration, which does not scale past a few hundred assets.
+			if (bFilterBySkeleton)
+			{
+				Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(FilterSkeleton).GetExportTextName());
+			}
+
 			AssetRegistry.GetAssets(Filter, AllAssets);
 
 			TArray<TSharedPtr<FJsonValue>> AssetArray;
@@ -391,34 +373,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 					TypeString = ClassName.ToString();
 				}
 
+				// Duration and frame count are not registry tags, so the surviving
+				// assets (at most `limit` of them) are loaded for those two fields.
 				float Duration = 0.0f;
 				int32 NumFrames = 0;
-
-				// Filter by skeleton and gather metadata — requires loading the asset
-				if (bFilterBySkeleton || true)
+				if (UAnimSequenceBase* SeqBase = Cast<UAnimSequenceBase>(AssetData.GetAsset()))
 				{
-					// We need to load to get skeleton info and duration
-					UAnimationAsset* AnimAsset = Cast<UAnimationAsset>(AssetData.GetAsset());
-					if (!IsValid(AnimAsset))
-					{
-						continue;
-					}
-
-					// Skeleton filter check
-					if (bFilterBySkeleton)
-					{
-						USkeleton* AssetSkeleton = AnimAsset->GetSkeleton();
-						if (AssetSkeleton != FilterSkeleton)
-						{
-							continue;
-						}
-					}
-
-					if (UAnimSequenceBase* SeqBase = Cast<UAnimSequenceBase>(AnimAsset))
-					{
-						Duration = SeqBase->GetPlayLength();
-						NumFrames = SeqBase->GetNumberOfSampledKeys();
-					}
+					Duration = SeqBase->GetPlayLength();
+					NumFrames = SeqBase->GetNumberOfSampledKeys();
+				}
+				else
+				{
+					continue;
 				}
 
 				TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
@@ -446,12 +412,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Result->SetStringField(TEXT("name_filter"), NameFilter);
 			}
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPAnimationTools

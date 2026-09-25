@@ -1,10 +1,14 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPAssetTools.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "Modules/ModuleManager.h"
 #include "IAssetTools.h"
 #include "UObject/SavePackage.h"
 #include "FileHelpers.h"
@@ -26,21 +30,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// list_assets - Browse content browser
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path"), TEXT("Content path to browse (e.g., '/Game/', '/Game/Blueprints/'). Default: '/Game/'"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("class_filter"), TEXT("Filter by asset class (e.g., 'StaticMesh', 'Material', 'Blueprint', 'Texture2D')"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_filter"), TEXT("Filter by asset name (substring match)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("recursive"), TEXT("Search subdirectories recursively (default: true)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("limit"), TEXT("Maximum number of results (default: 100)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_assets");
-		Def.Description = TEXT("List assets in the content browser with filtering by path, class, and name. Returns asset paths, classes, and file sizes.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "list_assets")
+		.Description(TEXT("List assets in the content browser with filtering by path, class, and name. Returns asset paths, classes, and file sizes."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("path"), TEXT("Content path to browse (e.g., '/Game/', '/Game/Blueprints/'). Default: '/Game/'"))
+		.StringArg(TEXT("class_filter"), TEXT("Filter by asset class (e.g., 'StaticMesh', 'Material', 'Blueprint', 'Texture2D')"))
+		.StringArg(TEXT("name_filter"), TEXT("Filter by asset name (substring match)"))
+		.BoolArg(TEXT("recursive"), TEXT("Search subdirectories recursively (default: true)"))
+		.IntArg(TEXT("limit"), TEXT("Maximum number of results (default: 100)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
@@ -98,23 +97,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Found %d assets (showing %d):\n[%s]"),
 				TotalMatching, Results.Num(), *FString::Join(Results, TEXT(",\n"))));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_asset_info - Get detailed asset information
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Full asset path (e.g., '/Game/Meshes/SM_Chair.SM_Chair')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_asset_info");
-		Def.Description = TEXT("Get detailed metadata about an asset: class, package, tags, size, references, and key properties.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_asset_info")
+		.Description(TEXT("Get detailed metadata about an asset: class, package, tags, size, references, and key properties."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Full asset path (e.g., '/Game/Meshes/SM_Chair.SM_Chair')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -162,24 +154,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			}
 			Info->SetArrayField(TEXT("referencers"), RefsArray);
 
-			return FMCPToolResult::Success(JsonToString(Info));
+			return FMCPToolResult::SuccessStructured(JsonToString(Info), Info);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// import_asset - Import a file from disk
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("source_path"), TEXT("Absolute filesystem path to import (e.g., 'C:/Models/chair.fbx')"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("destination_path"), TEXT("Content path destination (e.g., '/Game/Meshes/')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("import_asset");
-		Def.Description = TEXT("Import a file from the filesystem into the content browser. Supports FBX, OBJ, PNG, JPG, WAV, and other standard formats.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "import_asset")
+		.Description(TEXT("Import a file from the filesystem into the content browser. Supports FBX, OBJ, PNG, JPG, WAV, and other standard formats."))
+		.LongRunning()
+		.StringArg(TEXT("source_path"), TEXT("Absolute filesystem path to import (e.g., 'C:/Models/chair.fbx')"), true)
+		.StringArg(TEXT("destination_path"), TEXT("Content path destination (e.g., '/Game/Meshes/')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString SourcePath, DestPath;
 			if (!Args->TryGetStringField(TEXT("source_path"), SourcePath)) return FMCPToolResult::Error(TEXT("source_path required"));
@@ -214,23 +200,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Imported %d asset(s): %s"),
 				ImportedNames.Num(), *FString::Join(ImportedNames, TEXT(", "))));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// delete_asset - Delete an asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path of the asset to delete"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("check_references"), TEXT("Check for references before deleting (default: true)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("delete_asset");
-		Def.Description = TEXT("Delete an asset from the content browser. By default checks for references to prevent breaking dependencies.");
-		Def.InputSchema = Schema;
-		Def.bDestructiveHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "delete_asset")
+		.Description(TEXT("Delete an asset from the content browser. By default checks for references to prevent breaking dependencies."))
+		.Destructive()
+		.StringArg(TEXT("asset_path"), TEXT("Content path of the asset to delete"), true)
+		.BoolArg(TEXT("check_references"), TEXT("Check for references before deleting (default: true)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -272,23 +251,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Deleted %d asset(s)"), Deleted));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// duplicate_asset - Copy an asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("source_path"), TEXT("Content path of the asset to duplicate"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("dest_path"), TEXT("Content path for the duplicate (e.g., '/Game/Meshes/')"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("new_name"), TEXT("Name for the duplicate"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("duplicate_asset");
-		Def.Description = TEXT("Create a copy of an existing asset at a new location with a new name.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "duplicate_asset")
+		.Description(TEXT("Create a copy of an existing asset at a new location with a new name."))
+		.StringArg(TEXT("source_path"), TEXT("Content path of the asset to duplicate"), true)
+		.StringArg(TEXT("dest_path"), TEXT("Content path for the duplicate (e.g., '/Game/Meshes/')"), true)
+		.StringArg(TEXT("new_name"), TEXT("Name for the duplicate"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString SourcePath, DestPath, NewName;
 			if (!Args->TryGetStringField(TEXT("source_path"), SourcePath)) return FMCPToolResult::Error(TEXT("source_path required"));
@@ -305,23 +277,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Duplicated to: %s"), *Duplicate->GetPathName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// rename_asset - Rename or move an asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Current asset path"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("new_path"), TEXT("New path/name for the asset (e.g., '/Game/NewFolder/NewName')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("rename_asset");
-		Def.Description = TEXT("Rename or move an asset to a new path. Automatically fixes up references.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "rename_asset")
+		.Description(TEXT("Rename or move an asset to a new path. Automatically fixes up references."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Current asset path"), true)
+		.StringArg(TEXT("new_path"), TEXT("New path/name for the asset (e.g., '/Game/NewFolder/NewName')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath, NewPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath)) return FMCPToolResult::Error(TEXT("asset_path required"));
@@ -343,16 +308,31 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Data.NewName = AssetName;
 			RenameData.Add(Data);
 
+			// v5 increment 26 (V5-27): reference-aware read-back around the rename.
+			IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+			const FString OldPackage = Data.Asset->GetOutermost()->GetName();
+			TArray<FName> RefsBefore; AR.GetReferencers(FName(*OldPackage), RefsBefore);
 			bool bSuccess = AssetTools.RenameAssets(RenameData);
 
+			auto Out = MakeShared<FJsonObject>();
+			Out->SetStringField(TEXT("old_path"), AssetPath); Out->SetStringField(TEXT("new_path"), NewPath);
+			Out->SetNumberField(TEXT("referencers_before"), RefsBefore.Num());
 			if (bSuccess)
 			{
-				return FMCPToolResult::Success(FString::Printf(TEXT("Renamed '%s' to '%s'"), *AssetPath, *NewPath));
+				UObject* Moved = Data.Asset.Get();
+				const FString NewObjectPath = Moved ? Moved->GetPathName() : FString();
+				TArray<FName> RefsAfter; if (Moved) AR.GetReferencers(Moved->GetOutermost()->GetFName(), RefsAfter);
+				Out->SetStringField(TEXT("read_back_path"), NewObjectPath);
+				Out->SetBoolField(TEXT("read_back_at_new_path"), Moved && NewObjectPath.StartsWith(PackagePath));
+				Out->SetNumberField(TEXT("referencers_after"), RefsAfter.Num());
+				Out->SetBoolField(TEXT("references_preserved"), RefsAfter.Num() >= RefsBefore.Num());
+				Out->SetBoolField(TEXT("redirector_left"), FPackageName::DoesPackageExist(OldPackage));
+				Out->SetStringField(TEXT("note"), TEXT("referencers are asset-registry package counts before and after the rename; a redirector may remain at the old path until fixed up."));
+				return FMCPToolResult::SuccessStructured(FString::Printf(TEXT("Renamed '%s' to '%s' (%d referencer package(s) before, %d after)"), *AssetPath, *NewPath, RefsBefore.Num(), RefsAfter.Num()), Out);
 			}
-			return FMCPToolResult::Error(TEXT("Rename failed"));
+			Out->SetBoolField(TEXT("read_back_at_new_path"), false);
+			FMCPToolResult R = FMCPToolResult::SuccessStructured(TEXT("Rename failed"), Out); R.bIsError = true; return R;
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPAssetTools

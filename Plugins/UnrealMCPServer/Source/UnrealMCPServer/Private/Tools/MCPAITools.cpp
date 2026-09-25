@@ -1,6 +1,9 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPAITools.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Engine/World.h"
 #include "Editor.h"
@@ -21,6 +24,7 @@
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/SavePackage.h"
+#include "Common/MCPAssetCreate.h"
 
 namespace MCPAITools
 {
@@ -30,26 +34,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// create_behavior_tree - Create a new BehaviorTree asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new behavior tree (e.g., '/Game/AI/BT_MyTree')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_behavior_tree");
-		Def.Description = TEXT("Create a new BehaviorTree asset at the specified content path. The tree is saved empty and ready for editing.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_behavior_tree")
+		.Description(TEXT("Create a new BehaviorTree asset at the specified content path. The tree is saved empty and ready for editing."))
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new behavior tree (e.g., '/Game/AI/BT_MyTree')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
 				return FMCPToolResult::Error(TEXT("asset_path is required"));
 
-			FString PackagePath = FPackageName::ObjectPathToPackageName(AssetPath);
-			FString AssetName = FPackageName::GetShortName(AssetPath);
-
-			UPackage* Package = CreatePackage(*PackagePath);
-			if (!Package) return FMCPToolResult::Error(TEXT("Failed to create package"));
+			FString PackagePath, AssetName;
+			FMCPToolResult PackageError;
+			UPackage* Package = MCPCommon::CreateAssetPackage(AssetPath, PackagePath, AssetName, PackageError);
+			if (!Package) return PackageError;
 
 			UBehaviorTree* NewBT = NewObject<UBehaviorTree>(Package, FName(*AssetName), RF_Public | RF_Standalone);
 			if (!NewBT) return FMCPToolResult::Error(TEXT("Failed to create BehaviorTree object"));
@@ -64,32 +61,23 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Created BehaviorTree asset: %s"), *AssetPath));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_blackboard - Create a new BlackboardData asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new blackboard (e.g., '/Game/AI/BB_MyBlackboard')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_blackboard");
-		Def.Description = TEXT("Create a new BlackboardData asset at the specified content path. The blackboard is saved empty and ready for key editing.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_blackboard")
+		.Description(TEXT("Create a new BlackboardData asset at the specified content path. The blackboard is saved empty and ready for key editing."))
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new blackboard (e.g., '/Game/AI/BB_MyBlackboard')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
 				return FMCPToolResult::Error(TEXT("asset_path is required"));
 
-			FString PackagePath = FPackageName::ObjectPathToPackageName(AssetPath);
-			FString AssetName = FPackageName::GetShortName(AssetPath);
-
-			UPackage* Package = CreatePackage(*PackagePath);
-			if (!Package) return FMCPToolResult::Error(TEXT("Failed to create package"));
+			FString PackagePath, AssetName;
+			FMCPToolResult PackageError;
+			UPackage* Package = MCPCommon::CreateAssetPackage(AssetPath, PackagePath, AssetName, PackageError);
+			if (!Package) return PackageError;
 
 			UBlackboardData* NewBB = NewObject<UBlackboardData>(Package, FName(*AssetName), RF_Public | RF_Standalone);
 			if (!NewBB) return FMCPToolResult::Error(TEXT("Failed to create BlackboardData object"));
@@ -104,25 +92,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Created BlackboardData asset: %s"), *AssetPath));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// add_blackboard_key - Add a key to a blackboard
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("blackboard_path"), TEXT("Content path to the BlackboardData asset"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("key_name"), TEXT("Name of the key to add"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("key_type"), TEXT("Type of the blackboard key"),
-			{ TEXT("Bool"), TEXT("Float"), TEXT("Int"), TEXT("String"), TEXT("Vector"), TEXT("Object") }, true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("add_blackboard_key");
-		Def.Description = TEXT("Add a key to an existing BlackboardData asset. Supports Bool, Float, Int, String, Vector, and Object key types.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "add_blackboard_key")
+		.Description(TEXT("Add a key to an existing BlackboardData asset. Supports Bool, Float, Int, String, Vector, and Object key types."))
+		.Idempotent()
+		.StringArg(TEXT("blackboard_path"), TEXT("Content path to the BlackboardData asset"), true)
+		.StringArg(TEXT("key_name"), TEXT("Name of the key to add"), true)
+		.EnumArg(TEXT("key_type"), TEXT("Type of the blackboard key"), { TEXT("Bool"), TEXT("Float"), TEXT("Int"), TEXT("String"), TEXT("Vector"), TEXT("Object") }, true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString BBPath, KeyName, KeyType;
 			if (!Args->TryGetStringField(TEXT("blackboard_path"), BBPath))
@@ -167,22 +147,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Added key '%s' (type: %s) to blackboard '%s'"), *KeyName, *KeyType, *BB->GetName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_behavior_tree_info - Returns BT structure info
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path of the BehaviorTree asset"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_behavior_tree_info");
-		Def.Description = TEXT("Get information about a BehaviorTree asset: root node class, linked blackboard, and node count.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_behavior_tree_info")
+		.Description(TEXT("Get information about a BehaviorTree asset: root node class, linked blackboard, and node count."))
+		.ReadOnly()
+		.StringArg(TEXT("asset_path"), TEXT("Content path of the BehaviorTree asset"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -266,24 +239,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			}
 			Output->SetNumberField(TEXT("node_count"), NodeCount);
 
-			return FMCPToolResult::Success(JsonToString(Output));
+			return FMCPToolResult::SuccessStructured(JsonToString(Output), Output);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_blackboard_info - Returns blackboard keys
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path of the BlackboardData asset"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_blackboard_info");
-		Def.Description = TEXT("Get information about a BlackboardData asset. Returns all defined keys with their names and types.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_blackboard_info")
+		.Description(TEXT("Get information about a BlackboardData asset. Returns all defined keys with their names and types."))
+		.ReadOnly()
+		.StringArg(TEXT("asset_path"), TEXT("Content path of the BlackboardData asset"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -323,26 +289,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Output->SetNumberField(TEXT("key_count"), KeysArray.Num());
 			Output->SetArrayField(TEXT("keys"), KeysArray);
 
-			return FMCPToolResult::Success(JsonToString(Output));
+			return FMCPToolResult::SuccessStructured(JsonToString(Output), Output);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// list_ai_assets - List BT/Blackboard/EQS assets
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path"), TEXT("Content path to search (e.g., '/Game/'). Default: '/Game/'"));
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("asset_type"), TEXT("Type of AI assets to list"),
-			{ TEXT("BehaviorTree"), TEXT("BlackboardData"), TEXT("EnvQuery"), TEXT("All") });
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_ai_assets");
-		Def.Description = TEXT("List AI-related assets (BehaviorTrees, BlackboardData, EnvQuery) found in the project content browser.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "list_ai_assets")
+		.Description(TEXT("List AI-related assets (BehaviorTrees, BlackboardData, EnvQuery) found in the project content browser."))
+		.ReadOnly()
+		.StringArg(TEXT("path"), TEXT("Content path to search (e.g., '/Game/'). Default: '/Game/'"))
+		.EnumArg(TEXT("asset_type"), TEXT("Type of AI assets to list"), { TEXT("BehaviorTree"), TEXT("BlackboardData"), TEXT("EnvQuery"), TEXT("All") })
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString Path = TEXT("/Game/");
 			Args->TryGetStringField(TEXT("path"), Path);
@@ -399,34 +357,25 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			Output->SetNumberField(TEXT("total_count"), TotalCount);
 
-			return FMCPToolResult::Success(JsonToString(Output));
+			return FMCPToolResult::SuccessStructured(JsonToString(Output), Output);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_eqs_query - Create a new EnvQuery asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new EQS query (e.g., '/Game/AI/EQS_FindCover')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_eqs_query");
-		Def.Description = TEXT("Create a new Environment Query System (EQS) query asset at the specified content path.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_eqs_query")
+		.Description(TEXT("Create a new Environment Query System (EQS) query asset at the specified content path."))
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new EQS query (e.g., '/Game/AI/EQS_FindCover')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
 				return FMCPToolResult::Error(TEXT("asset_path is required"));
 
-			FString PackagePath = FPackageName::ObjectPathToPackageName(AssetPath);
-			FString AssetName = FPackageName::GetShortName(AssetPath);
-
-			UPackage* Package = CreatePackage(*PackagePath);
-			if (!Package) return FMCPToolResult::Error(TEXT("Failed to create package"));
+			FString PackagePath, AssetName;
+			FMCPToolResult PackageError;
+			UPackage* Package = MCPCommon::CreateAssetPackage(AssetPath, PackagePath, AssetName, PackageError);
+			if (!Package) return PackageError;
 
 			UEnvQuery* NewEQS = NewObject<UEnvQuery>(Package, FName(*AssetName), RF_Public | RF_Standalone);
 			if (!NewEQS) return FMCPToolResult::Error(TEXT("Failed to create EnvQuery object"));
@@ -441,23 +390,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Created EnvQuery asset: %s"), *AssetPath));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_bt_blackboard - Link a blackboard to a behavior tree
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("bt_path"), TEXT("Content path of the BehaviorTree asset"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("blackboard_path"), TEXT("Content path of the BlackboardData asset to link"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_bt_blackboard");
-		Def.Description = TEXT("Link a BlackboardData asset to a BehaviorTree. The behavior tree will use this blackboard for its AI context data.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_bt_blackboard")
+		.Description(TEXT("Link a BlackboardData asset to a BehaviorTree. The behavior tree will use this blackboard for its AI context data."))
+		.Idempotent()
+		.StringArg(TEXT("bt_path"), TEXT("Content path of the BehaviorTree asset"), true)
+		.StringArg(TEXT("blackboard_path"), TEXT("Content path of the BlackboardData asset to link"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString BTPath, BBPath;
 			if (!Args->TryGetStringField(TEXT("bt_path"), BTPath))
@@ -476,8 +418,6 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Linked blackboard '%s' to behavior tree '%s'"), *BB->GetName(), *BT->GetName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPAITools

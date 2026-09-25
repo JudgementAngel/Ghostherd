@@ -1,6 +1,10 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPNiagaraTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "NiagaraActor.h"
 #include "NiagaraComponent.h"
@@ -25,11 +29,8 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
 }
 
 void RegisterAll(FMCPToolRegistry& Registry)
@@ -37,19 +38,14 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// spawn_niagara_system - Place a Niagara system in the level
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("system_path"), TEXT("Content path to the NiagaraSystem asset (e.g., '/Game/FX/NS_Fire')"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("X position in the world (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Y position in the world (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Z position in the world (default: 0)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("label"), TEXT("Optional actor label shown in the scene outliner"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("spawn_niagara_system");
-		Def.Description = TEXT("Spawn a Niagara particle system actor in the current level at a given world position. The system_path must point to a valid UNiagaraSystem asset in the content browser.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "spawn_niagara_system")
+		.Description(TEXT("Spawn a Niagara particle system actor in the current level at a given world position. The system_path must point to a valid UNiagaraSystem asset in the content browser."))
+		.StringArg(TEXT("system_path"), TEXT("Content path to the NiagaraSystem asset (e.g., '/Game/FX/NS_Fire')"), true)
+		.NumberArg(TEXT("x"), TEXT("X position in the world (default: 0)"))
+		.NumberArg(TEXT("y"), TEXT("Y position in the world (default: 0)"))
+		.NumberArg(TEXT("z"), TEXT("Z position in the world (default: 0)"))
+		.StringArg(TEXT("label"), TEXT("Optional actor label shown in the scene outliner"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -104,26 +100,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				*NiagaraActor->GetActorLabel(),
 				Location.X, Location.Y, Location.Z));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_niagara_parameter - Set a user parameter on a Niagara component
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor containing the NiagaraComponent"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("parameter_name"), TEXT("Name of the user-exposed Niagara parameter (with or without 'User.' prefix)"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("value"), TEXT("New value as a string. Float: '1.5', Int: '3', Bool: 'true'/'false', Vector: 'X=1 Y=2 Z=3', Color: '(R=1,G=0,B=0,A=1)'"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("type"), TEXT("Parameter type to parse the value as (default: Float)"),
-			{ TEXT("Float"), TEXT("Int"), TEXT("Bool"), TEXT("Vector"), TEXT("Color") });
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_niagara_parameter");
-		Def.Description = TEXT("Set a user-exposed parameter on a NiagaraComponent attached to an actor. Use get_niagara_parameters first to discover available parameter names and types.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_niagara_parameter")
+		.Description(TEXT("Set a user-exposed parameter on a NiagaraComponent attached to an actor. Use get_niagara_parameters first to discover available parameter names and types."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor containing the NiagaraComponent"), true)
+		.StringArg(TEXT("parameter_name"), TEXT("Name of the user-exposed Niagara parameter (with or without 'User.' prefix)"), true)
+		.StringArg(TEXT("value"), TEXT("New value as a string. Float: '1.5', Int: '3', Bool: 'true'/'false', Vector: 'X=1 Y=2 Z=3', Color: '(R=1,G=0,B=0,A=1)'"), true)
+		.EnumArg(TEXT("type"), TEXT("Parameter type to parse the value as (default: Float)"), { TEXT("Float"), TEXT("Int"), TEXT("Bool"), TEXT("Vector"), TEXT("Color") })
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -230,23 +218,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Set Niagara parameter '%s' (%s) = '%s' on actor '%s'"),
 				*ParamName, *TypeStr, *ValueStr, *ActorName));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_niagara_parameters - List user-exposed parameters on a Niagara component
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor containing the NiagaraComponent"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_niagara_parameters");
-		Def.Description = TEXT("List all user-exposed parameters on a Niagara system, including their names, types, and any current override values set on the component.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_niagara_parameters")
+		.Description(TEXT("List all user-exposed parameters on a Niagara system, including their names, types, and any current override values set on the component."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor containing the NiagaraComponent"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -278,7 +259,7 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Result->SetStringField(TEXT("system"), NiagaraSystem->GetName());
 				Result->SetArrayField(TEXT("parameters"), TArray<TSharedPtr<FJsonValue>>());
 				Result->SetNumberField(TEXT("count"), 0);
-				return FMCPToolResult::Success(JsonToString(Result));
+				return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 			}
 
 			// Also get the component's override parameters to read current values
@@ -371,10 +352,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetArrayField(TEXT("parameters"), ParamArray);
 			Result->SetNumberField(TEXT("count"), ParamArray.Num());
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPNiagaraTools

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright StraySpark Studio 2026. All Rights Reserved.
 """
 Unreal MCP Server - STDIO Bridge
 

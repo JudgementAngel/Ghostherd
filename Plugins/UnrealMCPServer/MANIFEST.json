@@ -1,0 +1,1444 @@
+{
+ "audience": "customer",
+ "build": {
+  "build_id": "55116800",
+  "dll_bytes": 6689280,
+  "dll_mtime_utc": "2026-09-09T18:26:33Z",
+  "dll_sha256": "86bfc44844155b7a63b74ed9b8033727cac1609a9b2d70933bedd90399999d64",
+  "platform": "Win64"
+ },
+ "created_utc": "2026-09-09T19:10:42Z",
+ "engine_version": "5.8.0",
+ "files": {
+  "Binaries/Win64/UnrealEditor-UnrealMCPServer.dll": {
+   "bytes": 6689280,
+   "sha256": "86bfc44844155b7a63b74ed9b8033727cac1609a9b2d70933bedd90399999d64"
+  },
+  "Binaries/Win64/UnrealEditor.modules": {
+   "bytes": 108,
+   "sha256": "2e6b2c05a3f3da813b0da6d84ae795c9ebdc21d97ab41769e3b7a842dd168c5a"
+  },
+  "Config/DefaultChatAgents.json": {
+   "bytes": 6037,
+   "sha256": "eaee0ca4fbe0db9fed3ce652e1b55da19de98a5e09be1784b8d799cf46b642ed"
+  },
+  "Config/DefaultChatModels.json": {
+   "bytes": 9539,
+   "sha256": "fc9d721aabdb9a23d74486c90100b4d615980dfe5bd840a65ed26a1476517b50"
+  },
+  "Config/DefaultUnrealMCPServer.ini": {
+   "bytes": 689,
+   "sha256": "d166aaee7811d2e97eb760567aee06fbc9af0fdf67a8bbc1a69522464ec31692"
+  },
+  "Config/FilterPlugin.ini": {
+   "bytes": 388,
+   "sha256": "fc14ef22e7bcc4f0020b50a030e6e19c91e711947c324d9c111abf164449f6ff"
+  },
+  "Config/Themes/Contrast.json": {
+   "bytes": 4753,
+   "sha256": "fafcf57c5d6ae5aaa29d6e083b9f3faf085f05cb74f280f149eb7d97e05d3520"
+  },
+  "Config/Themes/Editor.json": {
+   "bytes": 5105,
+   "sha256": "97f8b5a48db1b29791793475a1cb48839f5441adb679db1d747d62c7ceb832e6"
+  },
+  "Config/Themes/Soft.json": {
+   "bytes": 4378,
+   "sha256": "be613659095fa25e648ec15cdb09d8fc23e292e3fe1903e2b0a0e9070c9eb255"
+  },
+  "Content/Python/bridge.py": {
+   "bytes": 3564,
+   "sha256": "aefa3dcebb629394e3c1133bf3da9e38b49fb0a2b8c2d5fe6194f79d74b4bc16"
+  },
+  "Content/Python/fal_3d_gen.py": {
+   "bytes": 12774,
+   "sha256": "9a193e114610f0fbae3e61e7eead293742adf2fa34e4a2cfa45f6ff6ced5b597"
+  },
+  "Content/Python/fal_image_gen.py": {
+   "bytes": 7905,
+   "sha256": "f879ebe43e7170303571f5f62f39111afd806d28d81a458f278e19865a84e467"
+  },
+  "Prompts/editor_observer_instructions.md": {
+   "bytes": 7453,
+   "sha256": "7020f792ffd5aa59804de40c1e86ccd88204c655a8c17f07460e63ec1c19ba2b"
+  },
+  "Prompts/unreal_mcp_system_prompt.md": {
+   "bytes": 112059,
+   "sha256": "60fd30c9a9709192106d7f60224317139464a9d365adcc06cebdc66cf738c609"
+  },
+  "README.md": {
+   "bytes": 2273,
+   "sha256": "bf760cdb9a193cdbb8182ced172e0140dd4c59ddcf6d7e2684721fa42901c366"
+  },
+  "Source/UnrealMCPChat/Private/Agents/AcpAgentBackend.cpp": {
+   "bytes": 44713,
+   "sha256": "1d19a10ba8acc7e14c24a78d2e7f4454e09d69278f018eeff89557c40f9bb662"
+  },
+  "Source/UnrealMCPChat/Private/Agents/AcpAgentBackend.h": {
+   "bytes": 7869,
+   "sha256": "06e70dc75c5eeecae25a02ceaa6512f9dcd70078dc145c0f4f2899c70f80754b"
+  },
+  "Source/UnrealMCPChat/Private/Agents/MCPChatPidRegistry.cpp": {
+   "bytes": 5254,
+   "sha256": "557fe967c43e6f48a47aec6c8b7c6824bda4153a04893cd017beec99e65a5fca"
+  },
+  "Source/UnrealMCPChat/Private/Agents/MCPChatPidRegistry.h": {
+   "bytes": 2422,
+   "sha256": "d766b98632ed1c71e693fd9bd84f28ae4e548d6ec7cce74f61576660805cb6e1"
+  },
+  "Source/UnrealMCPChat/Private/Agents/MCPChatProcessRunner.cpp": {
+   "bytes": 11946,
+   "sha256": "9e0ebd312fb79ec0f3191bc4a17de21a95926cd00836e74c8a1755cc6e15255b"
+  },
+  "Source/UnrealMCPChat/Private/Agents/MCPChatProcessRunner.h": {
+   "bytes": 5038,
+   "sha256": "d3845e4420e0e2ddce681f91a6b49aeb73a9524de526be7757d166b51a3439d1"
+  },
+  "Source/UnrealMCPChat/Private/Agents/MCPJsonRpcStdio.cpp": {
+   "bytes": 8134,
+   "sha256": "456c1e08c559ab85f8951a0431ce4daf6f8777a958c261102727f895281cca92"
+  },
+  "Source/UnrealMCPChat/Private/Agents/MCPJsonRpcStdio.h": {
+   "bytes": 3702,
+   "sha256": "109b740a8e5bbbc0b991f55e361db2ec5e5b864533a45e3b9f29203c8cdd1d7f"
+  },
+  "Source/UnrealMCPChat/Private/Backends/AnthropicBackend.cpp": {
+   "bytes": 46415,
+   "sha256": "adb80080580ab7a81c1cf0fd091ab8907788d26975373ea27c2f279b6c5042d7"
+  },
+  "Source/UnrealMCPChat/Private/Backends/AnthropicBackend.h": {
+   "bytes": 6672,
+   "sha256": "973ce8193a77b4c3bc1aa0b9c8b47d396ab03b2c8d4cfeadff47629c806ccfd6"
+  },
+  "Source/UnrealMCPChat/Private/Backends/MCPHttpStreamSink.h": {
+   "bytes": 1882,
+   "sha256": "a1519a671b493fcd136c750cc4fb7ea2ec67eb9a674074efeb648fc16fe4f5e9"
+  },
+  "Source/UnrealMCPChat/Private/Backends/MCPSseParser.cpp": {
+   "bytes": 3169,
+   "sha256": "4bf5f81699a4d324f285990d922b569d89a3401fed69e68db750badd2f17f631"
+  },
+  "Source/UnrealMCPChat/Private/Backends/MCPSseParser.h": {
+   "bytes": 1776,
+   "sha256": "6f0aaa5e5e76a410213ad9744782190b0490940e6f3148f3c7297fa6d882f7a4"
+  },
+  "Source/UnrealMCPChat/Private/Backends/MockChatBackend.cpp": {
+   "bytes": 8622,
+   "sha256": "bc8ee9f5c6d9378cbd1fd56a28675b6407ceaf2e416ec47b96de91cc79bc8b63"
+  },
+  "Source/UnrealMCPChat/Private/Backends/MockChatBackend.h": {
+   "bytes": 2392,
+   "sha256": "a808a4538cbb0307109bde00039945bd56ceb131527bfdded434fe69778f369c"
+  },
+  "Source/UnrealMCPChat/Private/Backends/OpenAICompatBackend.cpp": {
+   "bytes": 40800,
+   "sha256": "722e19a539f83ff357e2e604d7f26ccb4ebb14d98e3cd8935f1bea5fc5fd68f4"
+  },
+  "Source/UnrealMCPChat/Private/Backends/OpenAICompatBackend.h": {
+   "bytes": 5947,
+   "sha256": "baa0711b881a881eaa24f004e381eae5927ceef421e1d3c00edf6d1a35e1ca53"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatAgentCatalog.cpp": {
+   "bytes": 9088,
+   "sha256": "2e1466ff4f11fa8aeefb6e2747ededff8f5993656afb91a2111895074d866832"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatAttachments.cpp": {
+   "bytes": 16535,
+   "sha256": "efc615e9796888611c2ca4b0f70e446665b7610c91d8f4fff6f0c0be9f238e8a"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatCommands.cpp": {
+   "bytes": 10877,
+   "sha256": "de5605b38048fc302f18ee8534b41f288320e118361ec5a5a1e19b1405f7a07f"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatCommands.h": {
+   "bytes": 1936,
+   "sha256": "9611ad8cd697c4db1ec23f44664d985160ec9566838b3f0c0384d86704ed9f82"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatContext.cpp": {
+   "bytes": 20591,
+   "sha256": "ed7256452da53c1326e204ad4f24a49d2c2e1b0caae2a8f36680f0470a1d89d9"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatController.cpp": {
+   "bytes": 26707,
+   "sha256": "61c655bf3baf5dfa70fb69f164c92afe5536f75a30157087cbb26ef73ae0a98f"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatDrafts.cpp": {
+   "bytes": 4436,
+   "sha256": "b248ead38aab0190e6a9cc9b4dbc804dc1142b662843af44e4bff8c002ac6fce"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatDrafts.h": {
+   "bytes": 1910,
+   "sha256": "7cbe04dff1a7aa0a3d13dac3f8605cbde706433f8068935da718604a8c73cec3"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatModelCatalog.cpp": {
+   "bytes": 6704,
+   "sha256": "4dee548fb3210a19564cd7ce0bbc19c76456aa074f3dc9b6d6c1a8ed86d53351"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatSecretStore.cpp": {
+   "bytes": 20002,
+   "sha256": "6b23c2d083c47b953492997126cfc1fe41282d707f1c597f4f23650b27698e5b"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatStore.cpp": {
+   "bytes": 16896,
+   "sha256": "9799d1ce021d0ec4c1bed848f60349bd11502ef333cc6e45bc35ab23742dcc78"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatTokenEstimator.cpp": {
+   "bytes": 5812,
+   "sha256": "c5f9a4e14c623384559ba12a09924b8e77503625b445c4d4f67a489ced8b06cc"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatTokenEstimator.h": {
+   "bytes": 2765,
+   "sha256": "deae2a14bc3a8f1cd7cf4eb921e59dd5b6fff2f18142b7ead4272d0c3140d29c"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatToolBridge.cpp": {
+   "bytes": 12299,
+   "sha256": "58c3e7ea53e09d32be0501fb08fe9fc28161716ec69251ec97e508caa3c6f5a7"
+  },
+  "Source/UnrealMCPChat/Private/Core/MCPChatTypes.cpp": {
+   "bytes": 23042,
+   "sha256": "45cb1a0bfae055febfe8202e673bc276bb0c78ec3e4f070e8ad134245e7a58b7"
+  },
+  "Source/UnrealMCPChat/Private/MCPChatSettings.cpp": {
+   "bytes": 644,
+   "sha256": "0d66672ea9beaaa6cb91ba57bdeae9a4ced91b07cfc4a7c7c847a8fba33bee28"
+  },
+  "Source/UnrealMCPChat/Private/MCPChatStyle.cpp": {
+   "bytes": 13347,
+   "sha256": "ee2926cfc56f8770dded831de4c172358785d9f9b5abeb5aa1ccdfc2698ed3f1"
+  },
+  "Source/UnrealMCPChat/Private/MCPChatTheme.cpp": {
+   "bytes": 18954,
+   "sha256": "58fb7d101890948e5b9ac70c10f4463f6e15e01de433017298f2f8f24ca934bd"
+  },
+  "Source/UnrealMCPChat/Private/MCPChatThemeWatcher.cpp": {
+   "bytes": 2933,
+   "sha256": "8a8b9a16b1b618f03a4271e4bd80d59796a2d450915e0d1463e28a9950f02336"
+  },
+  "Source/UnrealMCPChat/Private/MCPChatThemeWatcher.h": {
+   "bytes": 1204,
+   "sha256": "5a2fd3483a728dad48cf8897b3aaaa11d62c7bb1e7ab5dac0b39a9f8939a5aba"
+  },
+  "Source/UnrealMCPChat/Private/Markdown/MCPCodeSyntaxHighlighter.cpp": {
+   "bytes": 11946,
+   "sha256": "28825d16db7fef444a9e30ba4b59a59b3381fd7fa85f4a0b595cac9c61907da8"
+  },
+  "Source/UnrealMCPChat/Private/Markdown/MCPCodeSyntaxHighlighter.h": {
+   "bytes": 2602,
+   "sha256": "a6433d03575e4fa73506baa9737e7c942810878a8889f5e890d2b7d966f95e36"
+  },
+  "Source/UnrealMCPChat/Private/Markdown/MCPMarkdownParser.cpp": {
+   "bytes": 17165,
+   "sha256": "24718d1796405182b317193c8c95fce634854acafda5718f873e48b67191ee7b"
+  },
+  "Source/UnrealMCPChat/Private/Markdown/MCPMarkdownParser.h": {
+   "bytes": 3669,
+   "sha256": "df1fdb65939e32425832759e2876d8424eadea01776be627ad2e6559174bbbe1"
+  },
+  "Source/UnrealMCPChat/Private/Markdown/MCPMarkdownRenderer.cpp": {
+   "bytes": 11289,
+   "sha256": "25b4534974c2e15df0456d0efb4e79135dab94914cdf1a568a02782a98ba4fd8"
+  },
+  "Source/UnrealMCPChat/Private/Markdown/MCPMarkdownRenderer.h": {
+   "bytes": 2385,
+   "sha256": "8896c89e9c04ebe8df3ca68736fdea7ebfd0500efcccf4a6d392c9f5b259fa97"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatArgumentForm.cpp": {
+   "bytes": 11025,
+   "sha256": "9cd5188e1a4513c9be441047722993452ddb474e3977f688189035656eb258ca"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatArgumentForm.h": {
+   "bytes": 2594,
+   "sha256": "fcfa34744df8cb07f62eb38d780c84fb4807a94e9135c87ec25f582970af8638"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatAttachmentStrip.cpp": {
+   "bytes": 5325,
+   "sha256": "c15a59b3a5892883e42eb30104434e1e702c4646e1d9d4cdae27fd085dd30c50"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatAttachmentStrip.h": {
+   "bytes": 1753,
+   "sha256": "99c742ffd52d844c860c9fd99b88d655c756cb8add36d44aaa6fa2ced7529312"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatCodeBlock.cpp": {
+   "bytes": 8201,
+   "sha256": "f6529d0c50281969e100c6a903ac327818ad369aa1edb0d77ad87bffdf3d14ec"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatCodeBlock.h": {
+   "bytes": 1539,
+   "sha256": "e6ae97b5860419915bd715c51b52f3545e19b7f1e2cd652c7d711f8a91cc6900"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatComposer.cpp": {
+   "bytes": 40636,
+   "sha256": "31edfd68bab1887f4339413b83151b143a8f846fc963acc9f0551367e54c90b3"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatComposer.h": {
+   "bytes": 6622,
+   "sha256": "546ca3bb8f2076be0c239741c912e9e658bd02b1b7ac7ed452835548df407230"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatEmptyState.cpp": {
+   "bytes": 9752,
+   "sha256": "1d373d565edc5abf1aede6c9d52b917e3cc13203e9714c90bc08c2e12d78cb0e"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatEmptyState.h": {
+   "bytes": 2173,
+   "sha256": "f434fb6f88e1ef0c454f237b0861d59124a6564cbe1ab042ce52303bbcbd2e05"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatHistoryRail.cpp": {
+   "bytes": 9170,
+   "sha256": "b5e918194c9f2d032697b3e05b12c98cda6b569ea4df74893281e19af6e1981b"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatHistoryRail.h": {
+   "bytes": 1784,
+   "sha256": "14af475cfe973ba6261d5c4c2233837850ebf0a49df7da7ce482ecdfd76569bc"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatImageBlock.cpp": {
+   "bytes": 7823,
+   "sha256": "a550e2145edd31ff254f49235b9829fffd1ccabf11ca41718cedb61acb2b65eb"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatImageBlock.h": {
+   "bytes": 2455,
+   "sha256": "6f0b5df9e6f19646f7b66b8dea49856249df0326d1db4fe15a5b4fba8ef6b40d"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatMessageRow.cpp": {
+   "bytes": 30527,
+   "sha256": "c5b48897caa263f933591f359bed08b3b43f653c94fbc67634b6141730d25555"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatMessageRow.h": {
+   "bytes": 3298,
+   "sha256": "4105bfee70b351b92991f485d828db14e375fc036cf3aa905c6d3d9fff368b3d"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatModelPicker.cpp": {
+   "bytes": 15215,
+   "sha256": "35b7ea3b130e0d495ee4282d580fb524352659fcac49ee059a2a6e2bea50631a"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatModelPicker.h": {
+   "bytes": 1955,
+   "sha256": "4677fdce0641a3436e05c93c1ae48cb8a7d26bcb8757640e97444c432668bc12"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatSettingsPanel.cpp": {
+   "bytes": 33340,
+   "sha256": "224560beb6b3f3f66d266bcea05cc45c92e681fe0112bdea4b7c9a8fd6aadf8f"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatSettingsPanel.h": {
+   "bytes": 3818,
+   "sha256": "2aeac8785e5297be503742f13825bc41e655f8116428f5a812fb474e0a86469c"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatTranscript.cpp": {
+   "bytes": 9821,
+   "sha256": "41d0dc7977876d100688e50496a1c84989361d346ddae10034b93d2958fa99db"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatTranscript.h": {
+   "bytes": 3397,
+   "sha256": "b71139a5ce0b14d8a0e5ff8e376d1dd63c67a11171effc461fbb4d8a45eebb74"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatTriggerPopup.cpp": {
+   "bytes": 12562,
+   "sha256": "84407f9b90cb9b44297b686156658f8ca3d15c2f40bd6d37804206fc51e11d21"
+  },
+  "Source/UnrealMCPChat/Private/UI/SChatTriggerPopup.h": {
+   "bytes": 3628,
+   "sha256": "78ccfba674d84945ba09114349132e8e6a6700f0d76256a330b06f8fd04dca9e"
+  },
+  "Source/UnrealMCPChat/Private/UI/SMCPChatPanel.cpp": {
+   "bytes": 21888,
+   "sha256": "abedab71290d367bd821c3a61969f05b32741c7f34b62c64d511f91999f50728"
+  },
+  "Source/UnrealMCPChat/Private/UI/SMCPChatPanel.h": {
+   "bytes": 3465,
+   "sha256": "956630757fc572b2986316ee1ded03cdca1cb44ba605418b7aaf129e5eacdd0e"
+  },
+  "Source/UnrealMCPChat/Private/UnrealMCPChatModule.cpp": {
+   "bytes": 11120,
+   "sha256": "55d7c68c3f3f26422542e8b723433546ac1c067c370281ad13008d38f5875d46"
+  },
+  "Source/UnrealMCPChat/Public/IMCPChatBackend.h": {
+   "bytes": 4613,
+   "sha256": "a4706fc0907d2e346fc6e2cd642ca1f564fd4dde9317914e9b241dceb1f2f953"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatAgentCatalog.h": {
+   "bytes": 4051,
+   "sha256": "69e4cd25e617ae96a940c40924f92c789c7f4f925b8733d61cd2564a6b9d4ecd"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatAttachments.h": {
+   "bytes": 5267,
+   "sha256": "2020b9e69cc7ce82d2d9a7f3ef130956180e52c8138cb4289d70a08754053bba"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatContext.h": {
+   "bytes": 4937,
+   "sha256": "8269e2ceb92dc5415287c347df3faa1e7937f41a28e3e5858309b1dcfab9b093"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatController.h": {
+   "bytes": 5228,
+   "sha256": "6b5b776d3f5f71bb3c2d80e15ba78a841fb38d61afb12fe9ed1a9879e29516e4"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatModelCatalog.h": {
+   "bytes": 2063,
+   "sha256": "9f58364c86ee889cc1431eedff304c7fc9a24d9d5bdd03efbb1daa6d30848c74"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatSecretStore.h": {
+   "bytes": 3498,
+   "sha256": "180836601667ae6c0d415cb5b97c8ea6b09fc1c00dd9570af21b0f62cabab983"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatSettings.h": {
+   "bytes": 6410,
+   "sha256": "c93c77cf37ef6c5212b6428115c796dd535139e194b0713921c6ea0526ef41f7"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatStore.h": {
+   "bytes": 3794,
+   "sha256": "04d3b12265d34240347bb0a2e2c295ea83443052936c4e278300dc9a9baebbb9"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatStyle.h": {
+   "bytes": 3086,
+   "sha256": "f93ec940d03b0eb34e7d5b1fd59d6398a55d57caaa78aa644dd5076404f67f52"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatTheme.h": {
+   "bytes": 5588,
+   "sha256": "ff59c55e2e5d411cf854e0d8461d72a31505d49981fc5725a60c8e73b9eb0a77"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatToolBridge.h": {
+   "bytes": 5677,
+   "sha256": "263c520545363533f8cb888733f952365670ed07a1afc3a9bbe8678b761461a2"
+  },
+  "Source/UnrealMCPChat/Public/MCPChatTypes.h": {
+   "bytes": 8080,
+   "sha256": "286a64529eedc4c1bfbdec08905dbeba74fd01a34f1dd7e40dfc209a1aae17ca"
+  },
+  "Source/UnrealMCPChat/Public/UnrealMCPChatModule.h": {
+   "bytes": 1417,
+   "sha256": "81e5a720c53c94c23c307e10330cf53b58b42b276653b0998e297c804d7b9a43"
+  },
+  "Source/UnrealMCPChat/UnrealMCPChat.Build.cs": {
+   "bytes": 2183,
+   "sha256": "af1edb7096b886c093dee08800ca2395719205a3e88906f443e89e02d453be47"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPActorResolver.cpp": {
+   "bytes": 2976,
+   "sha256": "b308e2dbcb8e3a0952bda802dab19dc8d4775979f0f9e6956ba52d7b7f6eb86d"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPActorResolver.h": {
+   "bytes": 1252,
+   "sha256": "e3c2de462f8269db5c31ae5a15a401a222fefebed26d0b19b415ee08f287ca16"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPAssetCreate.cpp": {
+   "bytes": 2946,
+   "sha256": "3561121cdbea7d84a563338f3b127d43f81ced9c1131b7302c1c8989f0d0a3c0"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPAssetCreate.h": {
+   "bytes": 3460,
+   "sha256": "65d2f93d6513e93ec235f5c9404e4adcff377d3ea30b02b33b885342d7b6b8c6"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPAssetResolver.h": {
+   "bytes": 1559,
+   "sha256": "e7c0ce82e156be3b7fb53543f6651bb083761536d9f1d377ebca53f122235140"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPEditorContext.cpp": {
+   "bytes": 869,
+   "sha256": "3414cb35d71f34b3cb2f49d91174763fca0d2745f377efca81b6a6073813f8f0"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPEditorContext.h": {
+   "bytes": 1121,
+   "sha256": "e5df12465a5d99f7d332ce939df8e9a7c71675cc12f457091c002db07a76d09a"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPGraphSerializer.cpp": {
+   "bytes": 5037,
+   "sha256": "d2b92ac31b78c067420b4eb38ba690eb299892a9b4071e26d311d54efb45fb8a"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPGraphSerializer.h": {
+   "bytes": 1257,
+   "sha256": "fd49da5d1c5234404c19fd9178a04a508b5a66dcaf9c2e88246a7b7de6e1de37"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPNodeFactory.h": {
+   "bytes": 1527,
+   "sha256": "72d335cdbf0af6724b56a5d00fab4a26c712ba772d7e16b8c2ce43708caf87d2"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPPropertyIO.cpp": {
+   "bytes": 4755,
+   "sha256": "8f4240a35af8b44a0f656864a372cc888e6763cc42826109e7a4a22543109f01"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPPropertyIO.h": {
+   "bytes": 2228,
+   "sha256": "26c0176f80f6c9e6317dfa439ca919c686883f95cb1510ca774c3cefd9e10e37"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPPythonCall.cpp": {
+   "bytes": 5118,
+   "sha256": "50ab85a7fe029f75435f7f6fcc7f6e081fc80bc1c17091f392f3146f5a10430a"
+  },
+  "Source/UnrealMCPServer/Private/Common/MCPPythonCall.h": {
+   "bytes": 2390,
+   "sha256": "287f10b7d7ce7bbd6b6c6f707e2b1681a6659b9a03f064bbe6ae3dafc9afe007"
+  },
+  "Source/UnrealMCPServer/Private/MCPActorChangePlans.cpp": {
+   "bytes": 19214,
+   "sha256": "3187b5249f3238183338c9d8201ad02130c2f8c0f8dc1ebb9a2269bc69a4fc60"
+  },
+  "Source/UnrealMCPServer/Private/MCPAuth.cpp": {
+   "bytes": 7008,
+   "sha256": "0dff0aa927682f16607461663eec2990756f453002e28d345ee71ee7356cabad"
+  },
+  "Source/UnrealMCPServer/Private/MCPDiagnostics.cpp": {
+   "bytes": 27279,
+   "sha256": "2a6fe5c4756c2ce3c8e5946d7bfdad495f595ce3ee563170e8975d422713892a"
+  },
+  "Source/UnrealMCPServer/Private/MCPErrorHelpers.cpp": {
+   "bytes": 2135,
+   "sha256": "488d28501a1cad2ce69558160525fabfc96712b1e2448cde21f17b3efa195b7e"
+  },
+  "Source/UnrealMCPServer/Private/MCPExternalGeneration.cpp": {
+   "bytes": 24620,
+   "sha256": "6889060d8b1fd52293135a57d01bbb23dbaf6f220c6175e1ff42229f1f920a9c"
+  },
+  "Source/UnrealMCPServer/Private/MCPGeneralPlans.cpp": {
+   "bytes": 35186,
+   "sha256": "4ecd50de3666e59511d0658c18bceb03d9f65b23e5756f21474c3f1a7a2e74dd"
+  },
+  "Source/UnrealMCPServer/Private/MCPHttpServer.cpp": {
+   "bytes": 54466,
+   "sha256": "01eb3e85e961bf989cc42ab2fad00a901816357e0e19b0b98617307996980215"
+  },
+  "Source/UnrealMCPServer/Private/MCPInputValidator.cpp": {
+   "bytes": 11884,
+   "sha256": "3f8301bb462843403e6d2040290bb2122f8f5c6ad7b369ea4aeeffd67915a529"
+  },
+  "Source/UnrealMCPServer/Private/MCPPromptProvider.cpp": {
+   "bytes": 1464,
+   "sha256": "876dfc25a8711a05a23c4aeb99878f4533dded2e9f65fa06e6a7e3bf1c60707e"
+  },
+  "Source/UnrealMCPServer/Private/MCPResourceProvider.cpp": {
+   "bytes": 3649,
+   "sha256": "aa11c0e2b2c88221d115aa00f782f66532438e7ca4e5d4e2ed6b328de35927ed"
+  },
+  "Source/UnrealMCPServer/Private/MCPResultStore.cpp": {
+   "bytes": 7181,
+   "sha256": "5c0e5a5b812ace569caa6922a74bf7dbb0d5c42a856f6c8571be66d0409366a0"
+  },
+  "Source/UnrealMCPServer/Private/MCPScenarios.cpp": {
+   "bytes": 37703,
+   "sha256": "a30edda1381253d88d1bd446e7b471c6f91d223b82717d85cf45680ea1514c4a"
+  },
+  "Source/UnrealMCPServer/Private/MCPSearchIndex.cpp": {
+   "bytes": 10193,
+   "sha256": "59f61579c8e167056f1a1c691fc1946f0ed86cc742a81d43211f73561dd74374"
+  },
+  "Source/UnrealMCPServer/Private/MCPSettings.cpp": {
+   "bytes": 9651,
+   "sha256": "c969f2ab20490ff4323983a0caa647de00a28399bca19636c020caf658d3768b"
+  },
+  "Source/UnrealMCPServer/Private/MCPSnapshots.cpp": {
+   "bytes": 31089,
+   "sha256": "0f62180bc506c8f3c723f46330f5f6f3111637545e668271199a326658b90e9a"
+  },
+  "Source/UnrealMCPServer/Private/MCPTaskManager.cpp": {
+   "bytes": 4451,
+   "sha256": "1067a335c6bd5d51b29c09731b81955b94dd4311921b8fd5cc7527f27065f7a8"
+  },
+  "Source/UnrealMCPServer/Private/MCPToolBuilder.cpp": {
+   "bytes": 4709,
+   "sha256": "73b85da35079ac4713136e84aa0bbb6989e1bfcea72ec29249c4490cb72a80ad"
+  },
+  "Source/UnrealMCPServer/Private/MCPToolRegistry.cpp": {
+   "bytes": 20679,
+   "sha256": "6fbe231ae7d8f5a2f2110d0dbba1264c2449c31bc30e3da3a2939107f93c47b1"
+  },
+  "Source/UnrealMCPServer/Private/MCPTransactionScope.cpp": {
+   "bytes": 5067,
+   "sha256": "9edf45ff68c1f0d74d4e590771e4bbee4b0443a959689962c18aed4e3f30910f"
+  },
+  "Source/UnrealMCPServer/Private/MCPValidate.cpp": {
+   "bytes": 6273,
+   "sha256": "c393b7b37531e7b4a12f059118499e6f37351c324176c6da1abc95e12426834d"
+  },
+  "Source/UnrealMCPServer/Private/MCPWorkingSet.cpp": {
+   "bytes": 2636,
+   "sha256": "756549bdd687d35c775e6fb57cfff1440f644624f9598f5f269b89d93de45b41"
+  },
+  "Source/UnrealMCPServer/Private/Prompts/MCPBuiltInPrompts.cpp": {
+   "bytes": 62893,
+   "sha256": "6d1df5624c1e54d0a1f9e93ea7849bbc2041bb047d74acc23a383fb5060d18a0"
+  },
+  "Source/UnrealMCPServer/Private/Resources/MCPBuiltInResources.cpp": {
+   "bytes": 33192,
+   "sha256": "5daf6147573176eb5243d3f10fed0aa15ef573f0529bb3f5d5e560b86f7b7f00"
+  },
+  "Source/UnrealMCPServer/Private/Tools/AnimGraph/AnimGraphBlendSpaces.cpp": {
+   "bytes": 14837,
+   "sha256": "1a8c81bca161bd9bef9652ee11c2a422064be33bfd3144b0b95c1cc5be84ee22"
+  },
+  "Source/UnrealMCPServer/Private/Tools/AnimGraph/AnimGraphCommon.cpp": {
+   "bytes": 3530,
+   "sha256": "35dd524e663f03fb146c09dae435f4c9a02475c9782d7224c4d6aedeacd3c538"
+  },
+  "Source/UnrealMCPServer/Private/Tools/AnimGraph/AnimGraphCommon.h": {
+   "bytes": 419,
+   "sha256": "14550dddd936e4d5302c5be601856f8d32a5c73a8fc91152c954e01e415741b7"
+  },
+  "Source/UnrealMCPServer/Private/Tools/AnimGraph/AnimGraphLifecycle.cpp": {
+   "bytes": 15657,
+   "sha256": "9907452574b9becfb92405158b4746f86b776a175af18547e91c075c9cf6e580"
+  },
+  "Source/UnrealMCPServer/Private/Tools/AnimGraph/AnimGraphMontages.cpp": {
+   "bytes": 11267,
+   "sha256": "3eb0b40a9d7fdc0e290e7e2dac124dbc0aa9513065298174d268d29964599c60"
+  },
+  "Source/UnrealMCPServer/Private/Tools/AnimGraph/AnimGraphNotifies.cpp": {
+   "bytes": 9186,
+   "sha256": "b49bba9d72fc0ec684911eb2c1044af5e3db1691d4aebf83caf13fcc2e5aec8c"
+  },
+  "Source/UnrealMCPServer/Private/Tools/AnimGraph/AnimGraphStateMachine.cpp": {
+   "bytes": 20891,
+   "sha256": "978ff2eda7b3909563f71f29fd4d13780ed118ca78800c7f1bcdcfca6548c9e7"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Animation/AnimCommon.cpp": {
+   "bytes": 24809,
+   "sha256": "f9d5844a07f15ff52446bc32e78f496e1e413a35d578c20083f2ba9754f58633"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Animation/AnimCommon.h": {
+   "bytes": 6217,
+   "sha256": "dbb6da2514f048d409f13ff47925526cf24fc5501dac55be94fc44aeba5828cb"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Animation/AnimDataTools.cpp": {
+   "bytes": 60865,
+   "sha256": "af23ba4a5a8c4b35d7c2ea75189ddd78702bc31532a32289bb0688de01d1253b"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Animation/AnimGraphNodeTools.cpp": {
+   "bytes": 66884,
+   "sha256": "e2a903331a281e3ac21ad2d38da745e34003fa566447ece603bf29ce8c02d8e7"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Animation/AnimValidation.cpp": {
+   "bytes": 14656,
+   "sha256": "7d2067187e1b4e5629a3a78ca65c4f5cbd42bdb2c19b6470a887b490023c64d7"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Animation/MontageTools.cpp": {
+   "bytes": 58253,
+   "sha256": "635cd69c4adbb045b35a7ccb4cf690279482c4616d34f017b2f74323148f85b0"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintCommon.cpp": {
+   "bytes": 11881,
+   "sha256": "b3c55ba2d5b5446e3ef4d901a68a7ac584c385d6d4fb8cd4aa588c43815a8496"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintCommon.h": {
+   "bytes": 1205,
+   "sha256": "27c10add22666fc1d1f5eaf00ef5fe4756c51a529023ba069b4fbd97336d1888"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintDispatchers.cpp": {
+   "bytes": 18932,
+   "sha256": "1c451a82208ff61851e348d1292f8887305fe1b98f2bbf33ea60c9a8cd65a792"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintFlowControl.cpp": {
+   "bytes": 20270,
+   "sha256": "b6d8ea616e3a894e232b5e2e9bea91be7658f3ca7243089f90ee26bf5532023d"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintFunctions.cpp": {
+   "bytes": 22750,
+   "sha256": "0474d03acf7942e4372e920ef587ed51c20b8918551c070915cbbffbed60c03c"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintGraph.cpp": {
+   "bytes": 18155,
+   "sha256": "92392bb8d9e89f23bc67adb57e2dfae0457d9c3f781588b57257ca4f534bdc7c"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintInput.cpp": {
+   "bytes": 5891,
+   "sha256": "cc4c659558f9a735e13d4168db822ddd777af47575fb83a047814628c3ae37c2"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintIntrospection.cpp": {
+   "bytes": 21368,
+   "sha256": "a73da9567117d5d6505980dcff663d5d440cc3d755fcfb86eee30a5f38ca7dba"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintLifecycle.cpp": {
+   "bytes": 22002,
+   "sha256": "149cfd225d577f0e543462b845f28af7aca1870cc5c7875887715c47925508cc"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintNodes.cpp": {
+   "bytes": 55915,
+   "sha256": "91377c3c37880e8b2d6077aac3b2ee0e25f8c3ed5c668d2698c757e8730af1aa"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintPatch.cpp": {
+   "bytes": 24200,
+   "sha256": "86475a38aa080353733a099bd7b9f5f6c67ec152255fa05046f107b70d899ec5"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintValidation.cpp": {
+   "bytes": 13791,
+   "sha256": "af52de566732d948665e36257af9dfeb186994380174447fb9774d472094a25e"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Blueprint/BlueprintVariables.cpp": {
+   "bytes": 18061,
+   "sha256": "4d884ca28276726a66edd1b846583d5f3ad4c05981d5b5b7898c5aba821d83cc"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCP3DModelTools.cpp": {
+   "bytes": 17075,
+   "sha256": "18c3d58a0e4618ff3983c71f98965604413111af1871e59b9959d9a6b2c2dc05"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPAITools.cpp": {
+   "bytes": 17567,
+   "sha256": "7140ed565c8dae2b4f057183f9229f6debbe3cedd9d9460d9123d2de0b62eee6"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPActorTools.cpp": {
+   "bytes": 46487,
+   "sha256": "c987e3ce599e2960451710fd7d58984cf236a1d9e16c1c588e26f306323eb464"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPAnimGraphTools.cpp": {
+   "bytes": 718,
+   "sha256": "e6b7477aec126836abe2bed67f5ddbed95f8cd764f24f2c1d599644a2638043f"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPAnimMixerTools.cpp": {
+   "bytes": 11929,
+   "sha256": "1ceda3e0eecaf1e80eeb3aec972b481b961410cbc5f41d53113cae1087ff5b0d"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPAnimationTools.cpp": {
+   "bytes": 18455,
+   "sha256": "52825defd5bc341fc53780807bf543baea63a86369c966c9cda73007234f9a9f"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPAssetManagementTools.cpp": {
+   "bytes": 28228,
+   "sha256": "51578809bdcd128d5308138fad296e1d9db610d80b2ad6216e5d8512f9142a57"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPAssetTools.cpp": {
+   "bytes": 14621,
+   "sha256": "ee893d376be2472897baa4b3a77bee341368b02056b02375e0a7c75076634f90"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPAudioTools.cpp": {
+   "bytes": 10853,
+   "sha256": "f70bb1a03885536e35d0cae4a780d9b77763878395636eaa6b18367d7779da7e"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPAuthoringVerification.cpp": {
+   "bytes": 43109,
+   "sha256": "2f788b61b1aa6ec48925f291d942edd5137a3d12787818376b1521c1469b00f8"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPBatchTools.cpp": {
+   "bytes": 15097,
+   "sha256": "dbea183111e9a36f4871618b1de062c035f71d818e8b1964f4221cec13c58821"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPBlueprintTools.cpp": {
+   "bytes": 1373,
+   "sha256": "9a66cdabb0daf5506c76e2403a46169c041ff58b3d176541bd020c7d8c37b3c9"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPBuildTools.cpp": {
+   "bytes": 28891,
+   "sha256": "502c8e325840cfa0703467245bd660b2320cbbd0354aea43fb9572af4a574595"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPChaosTools.cpp": {
+   "bytes": 22219,
+   "sha256": "9ca38029bd856fc7e239873cef910da7ffb7cde0c7291e5aa9de602eefa7c082"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPCommonUITools.cpp": {
+   "bytes": 16940,
+   "sha256": "ebf588d65f12b996823322a8f0f2dffcc8c0700e7298c860658d87d4c51da14e"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPControlRigTools.cpp": {
+   "bytes": 13597,
+   "sha256": "1610438f66d1be9ebe56d6f6ddc9653949f75c5afaee2605e49c8714ecff5da1"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPDataTools.cpp": {
+   "bytes": 23533,
+   "sha256": "1ff53c6402c94935b4739986fab9f4de330d6b9e634d71c634e7a2149e453ccb"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPDebugTools.cpp": {
+   "bytes": 16934,
+   "sha256": "92347547a08ae60c423c8771295e756c747952e1bddf78a9230ed904c58c8782"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPEditorTools.cpp": {
+   "bytes": 13744,
+   "sha256": "20ed7c85b8cf54adb5b7045f03d87671f22c6afe6035315011b0601872cea1d5"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPEngineAPITools.cpp": {
+   "bytes": 18791,
+   "sha256": "0b0066644c9eed2e9b1b4537d5a5a133acc0e86f62033e04a78e5f7c5217b9a6"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPEnhancedInputTools.cpp": {
+   "bytes": 15287,
+   "sha256": "e778543f73a0d925c77509a24e9706a30ba1ef2a7d62f1493fc4982c0ef9d583"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPEnvironmentTools.cpp": {
+   "bytes": 18884,
+   "sha256": "9d2a18d9c19be8a21f755d04998c70f8cdc5520e756c48cfe25f0a69aa35c38f"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPFoliageTools.cpp": {
+   "bytes": 18981,
+   "sha256": "353c0b859220d6ed8ae57996f3967d959876973a70bc4df7b34f1e6d02e6ad84"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPGASTools.cpp": {
+   "bytes": 24009,
+   "sha256": "3a0e7078dee79fa5c9b62a7f1ac3b968487ca1104ee03373aa9ba5791eecc5d1"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPGameFrameworkTools.cpp": {
+   "bytes": 12932,
+   "sha256": "1d6137a6bb37471ff13d99fce3c8374156462bb7961e242f8b864bbef71b07df"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPGameplayTagTools.cpp": {
+   "bytes": 8055,
+   "sha256": "e7c158c7d97e8729cc34f925228e2f4bf3b9a280ff17191e1176ff3c2f8ec799"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPGizmoTools.cpp": {
+   "bytes": 5153,
+   "sha256": "18021471644a6779893de88d41667d0b08aeea04bcbe84757f638bbdb7339405"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPIrisTools.cpp": {
+   "bytes": 2717,
+   "sha256": "9fc9174a1e5550f27f6b403b68ccb1e6d56c98ac532987881f5606400afa0b5c"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPLandscapeTools.cpp": {
+   "bytes": 21577,
+   "sha256": "2a9bf89ca1c0b942fac91aaa75679b6d6437440a45b02a4d5a22463b545246cf"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPLevelTools.cpp": {
+   "bytes": 13383,
+   "sha256": "e1052fe0c92ef3530550fd15721cc9d432ed7e220838636f4d5d91d221678d59"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPLightingTools.cpp": {
+   "bytes": 6683,
+   "sha256": "062df1628f74738ae887e1e077c8472a4f0a91847ce020b879f8d0abb8afcabb"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMacroTools.cpp": {
+   "bytes": 30374,
+   "sha256": "2a1a7621ad28a4a0e0709f8571c1633905acf2d4b05bb5588cbdce1d8b4303db"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMaterialGraphTools.cpp": {
+   "bytes": 40955,
+   "sha256": "a29c909ca77c74681cf2799ef299f1f9bc7af1262f2a32924536fc1d09647bb0"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMaterialLayerTools.cpp": {
+   "bytes": 11254,
+   "sha256": "eeb42397d70d2be86cf665ecb4cecdcc85ca6a9b56dab60a58bb2688740b28dd"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMaterialTools.cpp": {
+   "bytes": 12230,
+   "sha256": "39650b4049dbdde6a101692888231b2f21e15abd5547922f2d44c56a361ad7a4"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMetaHumanTools.cpp": {
+   "bytes": 9466,
+   "sha256": "d5bc4412dbc4622a330896d3db281e9b997908ea79090f1e16745b21a0615e1a"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMetaSoundGraphTools.cpp": {
+   "bytes": 25369,
+   "sha256": "8ea55ba6fc8f51d5b63a186b9392a0d827f11d099a751cbfa7e80b9bf05127a9"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMetaSoundTools.cpp": {
+   "bytes": 31404,
+   "sha256": "ad4dec3e2d5e0fe881318d3b53b39c5a8ca7d983d432774723ef002b8357c2fa"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMetaTools.cpp": {
+   "bytes": 40092,
+   "sha256": "0cbc26ba20e17bb07cdff9e21146458d8991f841dc76d0dd19442c6203dc1d02"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPModelingTools.cpp": {
+   "bytes": 21682,
+   "sha256": "c8adaafb945f18a48d4d0b9e605fd325d2a5dc3d9415caa0f0bb58ac1137f51b"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMoltTools.cpp": {
+   "bytes": 45976,
+   "sha256": "a756562b1a825ee00a4fb877959b40d6f83b7369281a974e8d9647c1d775fc29"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPMorphTargetTools.cpp": {
+   "bytes": 8728,
+   "sha256": "02f95848e31044ea6be491e29a795031c1cfb835919e25a7deaca80f8b7317b0"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPNavigationTools.cpp": {
+   "bytes": 7991,
+   "sha256": "9661cd6e4159402afc419eeb88f683e79e371baafd56dd8c06529d80acf6669d"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPNetworkingTools.cpp": {
+   "bytes": 16935,
+   "sha256": "06579f393131826ab2debb301923ada8aeb5485ff265236a458d8b32a7d9da5a"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPNiagaraTools.cpp": {
+   "bytes": 13780,
+   "sha256": "d71153321177cb55eeebcf0d80aed5dd976ca11b11e61128e771413c8cf306c8"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPPCGTools.cpp": {
+   "bytes": 40868,
+   "sha256": "dadbc333ce60657174dcd85dbde060b22b3a377ac5a7281e5439d0466d2b0d27"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPPIETools.cpp": {
+   "bytes": 486,
+   "sha256": "0955b739418eb72d20bca3bd916c76ecc466cfc6d8bc30a753663e7bb1371662"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPPerformanceTools.cpp": {
+   "bytes": 26296,
+   "sha256": "d84d73439a858657bd5f65de24d2a46ebada29204612f4a00fc3f6162e538d19"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPPhysicsTools.cpp": {
+   "bytes": 37539,
+   "sha256": "193cce038f5070c45aa38ce50e282a44122a1dcef1e04f13d52212caebba3e31"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPPythonBridge.cpp": {
+   "bytes": 4155,
+   "sha256": "d14fbeb8d110e9788b1042bec1a2aa26cef50824ffd0e131e96a3f9ed5e77db1"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPSearchTools.cpp": {
+   "bytes": 4116,
+   "sha256": "0be86aef7c385cb4a42de86d5100f97a3ef2e2336b22d900d58575b05447e6bb"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPSequencerTools.cpp": {
+   "bytes": 520,
+   "sha256": "9e9994fdf0c05909e8d19147fb059bf2e2382a405f63471cec88824964ed0427"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPSourceControlTools.cpp": {
+   "bytes": 22783,
+   "sha256": "508425406a7ad4fe9ee1b477ec1c63a450357e9b14889ebc141405622150a6ca"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPSpatialTools.cpp": {
+   "bytes": 591,
+   "sha256": "10c5491f601f3f3115e4b0706734f15b7be0e53a4c82a1c214cf4c4892715854"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPSplineTools.cpp": {
+   "bytes": 20122,
+   "sha256": "6df99c4289dfa723fe627f8d904843296f100a5215a8505b49ac6171965f9e24"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPStateTreeTools.cpp": {
+   "bytes": 14045,
+   "sha256": "4b1b525ae203f42525f815fe62e7ade9846612ad9a1cd09075588716912bcc16"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPStaticMeshTools.cpp": {
+   "bytes": 24481,
+   "sha256": "a69e09f5e00bfdfca2a3886be772f7dc27ac361a94e4528145e67e06af79e1c4"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPSubstrateTools.cpp": {
+   "bytes": 3060,
+   "sha256": "687320efd9b40c531fc7da5bd4e44cd1bc88a9de09cd8a2a4d424ad880f36174"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPTestAuthoringTools.cpp": {
+   "bytes": 18765,
+   "sha256": "166a8dad8a5c319249bcaa9cf3f7b5f30d3a5d576b68f6fb97702fe13e9b03de"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPToolsetAdapter.cpp": {
+   "bytes": 5133,
+   "sha256": "56ac719c13c713983f2436806eecd4ef86a92a6ec0dd13ebabbbc5bf0e3032ce"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPUIImageTools.cpp": {
+   "bytes": 11113,
+   "sha256": "7996389a0b243b6bfe71f5a94bc5b35a1364f725ad44b95c80206debca84c0cd"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPWidgetTools.cpp": {
+   "bytes": 1071,
+   "sha256": "5bcdf627e6b8c01678905df97e92617dab3692aa17635345c5b78ccdef3b8216"
+  },
+  "Source/UnrealMCPServer/Private/Tools/MCPWorldPartitionTools.cpp": {
+   "bytes": 17374,
+   "sha256": "f3464d2b7929b86bb0ba05a75f731c29dccd2e1437ad50bdaea9953496b629df"
+  },
+  "Source/UnrealMCPServer/Private/Tools/PIE/PIECapture.cpp": {
+   "bytes": 4636,
+   "sha256": "e86b7fc2758df659d66853c35b09435b7c987f56029742d7b9319a90dc2dfd9c"
+  },
+  "Source/UnrealMCPServer/Private/Tools/PIE/PIECommon.cpp": {
+   "bytes": 1285,
+   "sha256": "55cf612d530d2a8c5d9b7db9ccc0bafd50380fc8ca484cb956f49e616e5d108b"
+  },
+  "Source/UnrealMCPServer/Private/Tools/PIE/PIECommon.h": {
+   "bytes": 717,
+   "sha256": "a18b64a3f49e091d2cf0a11e2e07e1ce13046535e78cc4b7e460f54a792a8b68"
+  },
+  "Source/UnrealMCPServer/Private/Tools/PIE/PIEInput.cpp": {
+   "bytes": 6656,
+   "sha256": "a45d4a962ad7299ecdcafeed0f454798cc9d772726a4b8a021f98bb7426547f3"
+  },
+  "Source/UnrealMCPServer/Private/Tools/PIE/PIELifecycle.cpp": {
+   "bytes": 11034,
+   "sha256": "c06d706ebc0b76b052bc36f175dd90be85d62489b42ed959eece58ae840cb7bb"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Sequencer/SequencerAnimationTracks.cpp": {
+   "bytes": 40909,
+   "sha256": "39b0d80a05edf31ec7c2e3f52b237e5f4804dee03675ff4a6fd2f1012e128715"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Sequencer/SequencerCommon.cpp": {
+   "bytes": 3213,
+   "sha256": "4c12cf69747aea4d7992607b416380f23c37e68c3d0b6e31bfe932ef6a1e1aa1"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Sequencer/SequencerCommon.h": {
+   "bytes": 598,
+   "sha256": "3e2159b58ea58f697d3af8223523cb9ea27f8e37597f5c6d440e92a4c8b153b0"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Sequencer/SequencerLifecycle.cpp": {
+   "bytes": 18052,
+   "sha256": "8ec8e203b5b7babacf0e0f16611cf367526803a566166d7aaef8853a946023cd"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Sequencer/SequencerSpecialTracks.cpp": {
+   "bytes": 19094,
+   "sha256": "7e4d005498a03ddb0bae88b654b07b50cfc6a2c2ffb2c1df0950807a18345b65"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Sequencer/SequencerTracks.cpp": {
+   "bytes": 15299,
+   "sha256": "891d375b6ab3b53d231ec37fb949cb37a6d8ef50c33d8744c05c84f844b41f54"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Spatial/SpatialAlignment.cpp": {
+   "bytes": 13024,
+   "sha256": "4d9ffe0eb9a5fe4b788ddff1a9299602bd2565e21282fca9cd6631d7f51e6f53"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Spatial/SpatialBounds.cpp": {
+   "bytes": 4443,
+   "sha256": "a5dca7fc3207010ca764f5d4783c9ef5876e29c4060d5017f16d5281805589bf"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Spatial/SpatialCommon.cpp": {
+   "bytes": 1696,
+   "sha256": "32335696b043591298fefe7a61709f300c2c34c9f331db67b3ff201663e6e2f7"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Spatial/SpatialCommon.h": {
+   "bytes": 456,
+   "sha256": "91da0171fd89912eb09cfafde5c34d05fd1e12a88b14b065e314dc7f6c99fdd4"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Spatial/SpatialPlacement.cpp": {
+   "bytes": 20122,
+   "sha256": "2428bbaffcd4db6881f6e45bb225d9c9ae148a995939827ef5f8907233793df7"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Spatial/SpatialTrace.cpp": {
+   "bytes": 12695,
+   "sha256": "947387f566a813470aa30e68f8676cf151633b75cb8acb0285cb595670fb238f"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetAnimation.cpp": {
+   "bytes": 32261,
+   "sha256": "652ba51240033b7d16c03b70bb5c45dd3431933254429f1cc854b82fd4a297cb"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetBatch.cpp": {
+   "bytes": 16547,
+   "sha256": "58b3529367bd094261dbfd03ac338a46b30dd0ee5c84e14dbdd0a87b0954622d"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetCommon.cpp": {
+   "bytes": 22191,
+   "sha256": "231288e4fd3d4b345b6f10b867473e8409db37051369b12f6a5991ce1ce09434"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetCommon.h": {
+   "bytes": 3203,
+   "sha256": "304d4378168b1168955d227785e09ca1922b506f09c5960a72162aee203cf36c"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetEvents.cpp": {
+   "bytes": 23967,
+   "sha256": "5d5f018f42c818741e0256ebdfdb28330eda815f093b0c4ebfe20d6615277486"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetLayout.cpp": {
+   "bytes": 13476,
+   "sha256": "e123634bf9916d46afbe9c306ad0f50281ce7f18a9f3f5830d1e77d9396ba239"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetLifecycle.cpp": {
+   "bytes": 18018,
+   "sha256": "624d867b784d7aaba95c353278e79a3ecd78583d731818bbc6889e8fd29c4e2f"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetPIE.cpp": {
+   "bytes": 7254,
+   "sha256": "76030c10eb463753a0c39831849bd40234f18413064f0af664cd3aaae26e2166"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetPatch.cpp": {
+   "bytes": 23362,
+   "sha256": "65069bfcac140ff665751e191aa6029cb3f94e9fe43479319e6329567a71a435"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetProperties.cpp": {
+   "bytes": 47269,
+   "sha256": "52c158a57666cc41d3a541cc5e3307de4d1c089856cfbbb69ed01e1a112f4d3b"
+  },
+  "Source/UnrealMCPServer/Private/Tools/Widget/WidgetTree.cpp": {
+   "bytes": 55563,
+   "sha256": "9dd440cceec968e5a9ae792b48836ddeeaae43ad5266fb9688dc94347283c042"
+  },
+  "Source/UnrealMCPServer/Private/UI/SMCPStatusBarWidget.cpp": {
+   "bytes": 13899,
+   "sha256": "7b6d825f1b70111647b82a9b2a417e264161d031255f90f1f557121951a08069"
+  },
+  "Source/UnrealMCPServer/Private/UnrealMCPServerModule.cpp": {
+   "bytes": 19893,
+   "sha256": "dbfd255c90cc5a142ac277355d2eb9305fc5b79a66f747cef6fcd457d17c387e"
+  },
+  "Source/UnrealMCPServer/Private/Visual/MCPEditorSurfaces.cpp": {
+   "bytes": 94366,
+   "sha256": "26662f6d4243862b3b000305cd8b073cd2daf50848b91ccf95e426cf37806589"
+  },
+  "Source/UnrealMCPServer/Public/MCPActorChangePlans.h": {
+   "bytes": 566,
+   "sha256": "9b386dff1d452591b86a40dd52997651f17483be78a51280f7e902a49c324b40"
+  },
+  "Source/UnrealMCPServer/Public/MCPAuth.h": {
+   "bytes": 1403,
+   "sha256": "753182f0be5f63d7992b6b741c34faa266f4aea29f356f1c73e34192ff188d14"
+  },
+  "Source/UnrealMCPServer/Public/MCPDiagnostics.h": {
+   "bytes": 919,
+   "sha256": "2ef48ba65dafb34a9b1ae0396093391bc1cc35abc0e1d5707c667b3755955cd8"
+  },
+  "Source/UnrealMCPServer/Public/MCPEditorSurfaces.h": {
+   "bytes": 2970,
+   "sha256": "ffa9d24adbd9447ea0d57f21e37d10eda046328b4c00508c82812c7b1a18cf7c"
+  },
+  "Source/UnrealMCPServer/Public/MCPErrorHelpers.h": {
+   "bytes": 585,
+   "sha256": "428198ad5d5a7dd4ce8c251a4983c0334cb41e36ef0ca0022dfb37c0700757c1"
+  },
+  "Source/UnrealMCPServer/Public/MCPExternalGeneration.h": {
+   "bytes": 591,
+   "sha256": "1be2fe344a823bd03b6540a0152e5332bfd13b3c1c30370b25eae477a8cb30a7"
+  },
+  "Source/UnrealMCPServer/Public/MCPGeneralPlans.h": {
+   "bytes": 1417,
+   "sha256": "6054bcea1825ddda6ff7bc5c3e7bd4e3e85b3f21946a71aa6e7cf68bf5b5b592"
+  },
+  "Source/UnrealMCPServer/Public/MCPHttpServer.h": {
+   "bytes": 8331,
+   "sha256": "191a100691208a82d939d870ff08139ecbad08d17d5cf40517c17b0f9420842c"
+  },
+  "Source/UnrealMCPServer/Public/MCPInputValidator.h": {
+   "bytes": 586,
+   "sha256": "1592ca768867523ac4780bf0aad9c8337d4127c7bd7d3a0738bdd60c75c1a894"
+  },
+  "Source/UnrealMCPServer/Public/MCPPromptProvider.h": {
+   "bytes": 1059,
+   "sha256": "6e86f14f2cf144743a49a26765027c54f4a55189a0a02bf122ac5775704c865e"
+  },
+  "Source/UnrealMCPServer/Public/MCPProtocol.h": {
+   "bytes": 27581,
+   "sha256": "4d27abae32251a5885640efad764926c3f004763500752dc251c64989d2c9000"
+  },
+  "Source/UnrealMCPServer/Public/MCPRequestContext.h": {
+   "bytes": 2990,
+   "sha256": "57179d16a2e433e0b0c5388bcfee77765e8556279f8217364bce626556eac176"
+  },
+  "Source/UnrealMCPServer/Public/MCPResourceProvider.h": {
+   "bytes": 1793,
+   "sha256": "a8d2c11051cc5808344a730935ea419e1d9970da94c7ae022d7aefbe4775aca7"
+  },
+  "Source/UnrealMCPServer/Public/MCPResultStore.h": {
+   "bytes": 1189,
+   "sha256": "7769bc0d7b44b3fd6c8db6f87a4c9be36de19b4329621abe92fab43edd2443c2"
+  },
+  "Source/UnrealMCPServer/Public/MCPScenarios.h": {
+   "bytes": 2220,
+   "sha256": "3bed5dde63b3d96c6a90d2537c457dc5337fb66c3c4d07db850d86b176d928e7"
+  },
+  "Source/UnrealMCPServer/Public/MCPSearchIndex.h": {
+   "bytes": 2224,
+   "sha256": "53ebbb3fe18b8e90f2a8968642278e1f68682c7e5eeb8cc68a907c949bc75f71"
+  },
+  "Source/UnrealMCPServer/Public/MCPSettings.h": {
+   "bytes": 38300,
+   "sha256": "42bcdb47171ec231a8192caf6db13a66909ad8b26ae79f2df1d2a7d320a88127"
+  },
+  "Source/UnrealMCPServer/Public/MCPSnapshots.h": {
+   "bytes": 578,
+   "sha256": "ea000446e8e64c1ee96dd54c6120608ebefa9e04f5060d4bd1ef86dfcecb3c00"
+  },
+  "Source/UnrealMCPServer/Public/MCPTaskManager.h": {
+   "bytes": 3185,
+   "sha256": "d1bfa61b428d0f944fbd429eb2891a97152f9aa3419235ba5cc8d34309c553f4"
+  },
+  "Source/UnrealMCPServer/Public/MCPToolBuilder.h": {
+   "bytes": 3569,
+   "sha256": "b010657bf52f0ed757c7e49c8c4c0a3c1ba26150fb2838f462831fe77b1013fd"
+  },
+  "Source/UnrealMCPServer/Public/MCPToolRegistry.h": {
+   "bytes": 3821,
+   "sha256": "5a8213a8c01e350adcc090b4e6849dcaf472c226a20f46f7400bd2ae96c10df0"
+  },
+  "Source/UnrealMCPServer/Public/MCPTransactionScope.h": {
+   "bytes": 4175,
+   "sha256": "073761f3fc24352c264e136c6f6899f5f0b28c24ec4b7713f4518b89ef8549e8"
+  },
+  "Source/UnrealMCPServer/Public/MCPValidate.h": {
+   "bytes": 3465,
+   "sha256": "cf13555d510180276fff14968e41b92b90bc5525bd72dd15c2e5cbbff7926527"
+  },
+  "Source/UnrealMCPServer/Public/MCPWorkingSet.h": {
+   "bytes": 1965,
+   "sha256": "1af1f2a59655ce6f8e5e3053534d346404da50226b86c3ecab064790315ff6bf"
+  },
+  "Source/UnrealMCPServer/Public/Prompts/MCPBuiltInPrompts.h": {
+   "bytes": 207,
+   "sha256": "8ede45c057abe7e20a858a8d7553d2d3020ee210886f6d80f80c17075de013bd"
+  },
+  "Source/UnrealMCPServer/Public/Resources/MCPBuiltInResources.h": {
+   "bytes": 213,
+   "sha256": "4ed3ef290e4fd4b674253cae6d0adaeb20ed142a42a57ceb80c3b7f5b2ecb708"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCP3DModelTools.h": {
+   "bytes": 201,
+   "sha256": "2196193ae89285b5f4e1d6d988627d647c726f595badc22ab502b01e488a430a"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAITools.h": {
+   "bytes": 196,
+   "sha256": "5b8f50d7294ae199a4ac806e1a5a35a4982b88ad55a4e48a76eb4ac6bac0d8fd"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPActorTools.h": {
+   "bytes": 199,
+   "sha256": "2cc51948c553d42b3889b3693deb7928be1786e1c2f83bf46858527f10bfeea3"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAnimGraphTools.h": {
+   "bytes": 203,
+   "sha256": "d13980aad630cc0419f0baf1c34ba1dfc1a16a9dc9e2db9ae09d1dd02dcfe37a"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAnimMixerTools.h": {
+   "bytes": 500,
+   "sha256": "d3cd547cee924053caf80e86b1dbe8715a18f44f23d6268fe8b6c25a3b56b0b2"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAnimTools.h": {
+   "bytes": 984,
+   "sha256": "890d5bbe81ad3ec7e7edbd14ff1e12e1e8fbf358187b4ced2f5005654c6d17a4"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAnimationTools.h": {
+   "bytes": 203,
+   "sha256": "9dcb254a216cda2c84e2022791b3b32531cc7f0f09e0b9d31b681e551337550d"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAssetManagementTools.h": {
+   "bytes": 209,
+   "sha256": "001165361f6e98d05796aa830f3811104909ce5db44cba3528e3dc9dcc484a48"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAssetTools.h": {
+   "bytes": 199,
+   "sha256": "b3f61407da417183df8a361dec0b0c07f89d285b3d5da6cb8ed5586636ed30d9"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAudioTools.h": {
+   "bytes": 199,
+   "sha256": "2ec553d842a8d6a94e39eae9967b958c687789e9fc61596c65f0370ad51bcb80"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPAuthoringVerification.h": {
+   "bytes": 370,
+   "sha256": "1cabaf63cce238f06cb1d807bcb3a9dcfcea17cc6509a1ee2c532b315ce470c1"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPBatchTools.h": {
+   "bytes": 199,
+   "sha256": "edc073dbbae2a4f13b515ccf71e66c87645a39a47f879db6d4cba0e0fc612272"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPBlueprintTools.h": {
+   "bytes": 203,
+   "sha256": "caf388b314bf26330df1c888c1e78c6d9570423b2fcb4b1acfd682ac2887712a"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPBuildTools.h": {
+   "bytes": 199,
+   "sha256": "c0e0a7572d8d495f718fd09fce2ba043064a56dcc29ee81bac36fabe9f60c12c"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPChaosTools.h": {
+   "bytes": 199,
+   "sha256": "0e369f62ddb9fb6347bfacdfefc49f8dbae7a23bfa5e65aa51a0dcfca8e62bc2"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPCommonUITools.h": {
+   "bytes": 202,
+   "sha256": "c63b301dbdc50e9a2de16cb2853314f834b015cc0e18119d59a4827d6d5db34b"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPControlRigTools.h": {
+   "bytes": 204,
+   "sha256": "e031646d66bde826660cf09e00b0e88924c7f7028ca9732437f499d5b9ba9950"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPDataTools.h": {
+   "bytes": 198,
+   "sha256": "021b6c3df17abd9cf9e59b4223da9c495737ac548c3c8bf88b025dfa1b3d8202"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPDebugTools.h": {
+   "bytes": 199,
+   "sha256": "c9f61548ba5990ae1ba18907cd12b2497894492e2ad64d6b7a53cf580a55c6ca"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPEditorTools.h": {
+   "bytes": 200,
+   "sha256": "f049acd363e91c2aff2440775181c1fd9b2932f705289aa3b9577fdd0198fc33"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPEngineAPITools.h": {
+   "bytes": 203,
+   "sha256": "2f318281fb4f8d206b02c7a07c7da81086bd6beebcae1f86ccc88065a200e50a"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPEnhancedInputTools.h": {
+   "bytes": 207,
+   "sha256": "be59baab0e814ef6cf3047f1cf72a3f788f82e071fa86e7da5f74bc272297cec"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPEnvironmentTools.h": {
+   "bytes": 205,
+   "sha256": "dadf032e1c6980e2b45c52ad215b445d424bac137df89f08874cbb0e40568500"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPFoliageTools.h": {
+   "bytes": 201,
+   "sha256": "87008a42f4cbc5dc2043af4c16f07cce75609e6d6835ebf5474af358ea2ab1f0"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPGASTools.h": {
+   "bytes": 197,
+   "sha256": "e5e4834414e704e4921456ac0fb4028f36528aed142a345fe854e21b0b4d811a"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPGameFrameworkTools.h": {
+   "bytes": 207,
+   "sha256": "be57ea80e3e0425cf89d6b5adce973805b2cee859a30cd3ef4c3889f881cbe7e"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPGameplayTagTools.h": {
+   "bytes": 205,
+   "sha256": "d0d438aaab3e1236076f2cc4906dfb4bc7149689911a98b353b9dc9362c11721"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPGizmoTools.h": {
+   "bytes": 422,
+   "sha256": "fc259d6ef6112d0a7afe6fcc9e677948376534acf46efdba3599a56ae36003ba"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPIrisTools.h": {
+   "bytes": 448,
+   "sha256": "7316f7186b570354b37f22c8d324fbcee01ea5701ca3b503051c277027b3bd9f"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPLandscapeTools.h": {
+   "bytes": 203,
+   "sha256": "65a17db9f7929bbb45913fd2e2965052f283751c719cf9521c60a92df09b4248"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPLevelTools.h": {
+   "bytes": 199,
+   "sha256": "352bb94f8b03772490d50b97a15480dd83ae71631201ff668a1ffa048ef86e11"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPLightingTools.h": {
+   "bytes": 364,
+   "sha256": "e28509813eb87e284b2a0c46050f1ecefc2b2d144f3dced27738db69e754c796"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMacroTools.h": {
+   "bytes": 199,
+   "sha256": "e55d18c7857b57dc7022cd003e88ee93b12ac03aa6f73c1c269cf99e8efb6aad"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMaterialGraphTools.h": {
+   "bytes": 207,
+   "sha256": "5d28be0416fbcfcb121e774d64900c5da7d3d1d3eb6d947bd32d3426da17b518"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMaterialLayerTools.h": {
+   "bytes": 207,
+   "sha256": "61d1759dd54649c2216dbd76e5b7a5fe2799e6a09d497a7d0de1580e530ca0ca"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMaterialTools.h": {
+   "bytes": 202,
+   "sha256": "7180b143cf59adbf0f4f43e04a6a600e528fb745961ecb9196778546a7f49831"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMetaHumanTools.h": {
+   "bytes": 203,
+   "sha256": "d988acf64784c8303bad0ee096f094e00bab2ef6aaa5866e999836ad38cb7fef"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMetaSoundGraphTools.h": {
+   "bytes": 208,
+   "sha256": "b4c6e8342a30eba6f8c2bbb9effed3cb2ec034b10725d036081b972c06ea9aa3"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMetaSoundTools.h": {
+   "bytes": 203,
+   "sha256": "75559df7a5d0c6787b77b6ef4d41d95acbad56a124d2b4df92dc7ca69248f97e"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMetaTools.h": {
+   "bytes": 950,
+   "sha256": "adb4f38270787ca54eef8a2780906a6bc380259ffc6a43fd9cd673c8be950231"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPModelingTools.h": {
+   "bytes": 202,
+   "sha256": "8899043631806d67216f9ddda23b77f74679e1e7e2bb043e6fc066c13c6c0fbc"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMoltTools.h": {
+   "bytes": 448,
+   "sha256": "90b11b32dea6ad253c021a77d1627ee9289d08c73b43623acf7ca8a0c1e65321"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPMorphTargetTools.h": {
+   "bytes": 429,
+   "sha256": "0966eab79b504e31b9af5348492714a05dee0f2e52ed343bfc903fb7256a5ca0"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPNavigationTools.h": {
+   "bytes": 204,
+   "sha256": "58ecb30c8b7a829afeafe225acc905d00f08ca11f4f0cadb08db4b6eff98b50b"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPNetworkingTools.h": {
+   "bytes": 204,
+   "sha256": "9093b4b78a49e88a57b3ce9e641cd887f87d8745508d9abfedabb16d51f49632"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPNiagaraTools.h": {
+   "bytes": 201,
+   "sha256": "2603ecd1beb661fa7c3cd1e0ede8ded0485abf8e4e9d1e9b54d817ffcafd40f6"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPPCGTools.h": {
+   "bytes": 197,
+   "sha256": "7a9512103ae3359e5cb598c2b307608d5d444b2c7e56e3985c6ba57240ed569b"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPPIETools.h": {
+   "bytes": 197,
+   "sha256": "2a5d804e69c41f17de8987cc155b7b3e969dfd66fd8c3abf2fe1d2fe97641c44"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPPerformanceTools.h": {
+   "bytes": 205,
+   "sha256": "8c71ac63d62504a1f2f1a40a0b550c7221e4326438dcf984ff0a8e6940abc325"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPPhysicsTools.h": {
+   "bytes": 201,
+   "sha256": "af82a9ee7602e6045396ce1dd65429eb31bbb1a1e1672838c67c998927293f85"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPPythonBridge.h": {
+   "bytes": 201,
+   "sha256": "fdf3d7159f3321338e398a9803036171f241b0918d7a5b384acb3030ceba87d1"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPSearchTools.h": {
+   "bytes": 200,
+   "sha256": "3d73a89d33b95d6c24d09be7d5311cd5608c5f7f2951a9217da316959ea0f541"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPSequencerTools.h": {
+   "bytes": 562,
+   "sha256": "9bce712a775b1aaea52b335182d8339026eea96852141e2dae79fc7b20e22e1f"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPSourceControlTools.h": {
+   "bytes": 207,
+   "sha256": "1121503a11bfe741a8d0c31948fe81ef011cbdf59c2136722b0be92822d4b8c9"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPSpatialTools.h": {
+   "bytes": 201,
+   "sha256": "50be79872d8dfd3ad0c4194720637b31e388209899e4a3e6e72a06b14891f231"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPSplineTools.h": {
+   "bytes": 200,
+   "sha256": "7260b8907479901ac9819c4e20d7cfa2f2e73a0aa07b914ebb81b690e29a166b"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPStateTreeTools.h": {
+   "bytes": 203,
+   "sha256": "8fdf831403631090d112d98caea39088e420fe7055d7133c3b14a317d2f7f9a6"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPStaticMeshTools.h": {
+   "bytes": 204,
+   "sha256": "dd2afd8e9ccb657e4cfc102c2c1ce3f50a97d5f832cff60de0f7c5e80acdf592"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPSubstrateTools.h": {
+   "bytes": 447,
+   "sha256": "71f5e2630177ec4075558b4f4624f548a4bb43814d5ff47836ce07bfed112e45"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPTestAuthoringTools.h": {
+   "bytes": 207,
+   "sha256": "29dc45b0bb092eff9a6cf30afbd5672263c4e7c06c8a922692ea2d25366fdee3"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPToolsetAdapter.h": {
+   "bytes": 846,
+   "sha256": "557ff25dfe33180918e688ccb525e18fb3b9918496d4e0f882e2c7eff724faec"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPUIImageTools.h": {
+   "bytes": 201,
+   "sha256": "f3338e1162dc84cc267582f5c02a0cbb19a1f60ce0101b8db6c5dafe2e8033d9"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPWidgetTools.h": {
+   "bytes": 200,
+   "sha256": "acb8ae315310f3eac3a488be1b6cda272213c631d2c3eb22dd1ff14a3fd28190"
+  },
+  "Source/UnrealMCPServer/Public/Tools/MCPWorldPartitionTools.h": {
+   "bytes": 208,
+   "sha256": "de9a31133c80f5943439683537d85528b89978605f8ca406ec0866e563227794"
+  },
+  "Source/UnrealMCPServer/Public/UI/SMCPStatusBarWidget.h": {
+   "bytes": 1349,
+   "sha256": "28125525dd0da7f77d1343c151af281e8f5eecbf43f979da078e49f4c82c113d"
+  },
+  "Source/UnrealMCPServer/Public/UnrealMCPServerModule.h": {
+   "bytes": 653,
+   "sha256": "c0a66430a39782a79fabe2135bd0b681c1ad55248895b6c331ac5130489e690c"
+  },
+  "Source/UnrealMCPServer/UnrealMCPServer.Build.cs": {
+   "bytes": 6808,
+   "sha256": "ad041ec0b92a6d67f47a805fbadab6391d166fc25768ce44d5b7007d0b0f3ebf"
+  },
+  "UnrealMCPServer.uplugin": {
+   "bytes": 2288,
+   "sha256": "383a7033cfdcdc69666569fcec8649eaee7e7415aada21e60ce5e6a10e378b68"
+  },
+  "docs/CHANGELOG.md": {
+   "bytes": 71158,
+   "sha256": "3cb76185dc2350dad28aeebe08ee94c5a5431435217b72b613f760cc67173914"
+  },
+  "docs/FEATURES.md": {
+   "bytes": 3538,
+   "sha256": "06fc74c38cbcc66c0f502afe0c6de229448f73031b31be6fe0da2da2c66b83bd"
+  },
+  "docs/GETTING_STARTED.md": {
+   "bytes": 4448,
+   "sha256": "a9b114fdd47063c1a42d3cbf855b6ceb141592074bc56ac7121542b753a88ee7"
+  },
+  "docs/KNOWN_LIMITATIONS.md": {
+   "bytes": 1885,
+   "sha256": "335cfc5db08f4a3dd702b1f6c0b677d3cce6c5dab67d5a3fe1ccdf1d5c82e553"
+  },
+  "docs/TOOL_REFERENCE.md": {
+   "bytes": 334795,
+   "sha256": "7653f5011c5a300d44c960f95cfd8b137d2baeb5b391be492781cfad3377b6ad"
+  }
+ },
+ "is_beta": true,
+ "kind": "prebuilt",
+ "plugin": "Unreal MCP Server",
+ "source_fingerprint": "141be914a9f7550e242477c689e7985ac5e4878b2a3c0cd0f1e39805ff654e8c",
+ "version": 11,
+ "version_name": "5.0.0"
+}

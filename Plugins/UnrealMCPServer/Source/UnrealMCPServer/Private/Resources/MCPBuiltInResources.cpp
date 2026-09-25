@@ -1,3 +1,5 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Resources/MCPBuiltInResources.h"
 #include "MCPResourceProvider.h"
 #include "MCPProtocol.h"
@@ -21,6 +23,15 @@
 #include "Interfaces/IPluginManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/FileManager.h"
+#include "MCPSettings.h"
+#include "MCPToolRegistry.h"
+#include "Editor/TransBuffer.h"
+
+// Engine globals — declared at file (global) scope so the linker resolves them
+// against the Engine module. Declaring these inside the namespace below would
+// make them MCPBuiltInResources::GAverageFPS, which is not what Engine exports.
+extern ENGINE_API float GAverageFPS;
+extern ENGINE_API float GAverageMS;
 
 namespace MCPBuiltInResources
 {
@@ -300,11 +311,9 @@ void RegisterAll(FMCPResourceProvider& Provider)
 		{
 			TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
 
-			// FPS
-			extern ENGINE_API float GAverageFPS;
-			extern ENGINE_API float GAverageMS;
-			Info->SetNumberField(TEXT("average_fps"), GAverageFPS);
-			Info->SetNumberField(TEXT("average_ms"), GAverageMS);
+			// FPS — externs declared at file scope above (outside the namespace).
+			Info->SetNumberField(TEXT("average_fps"), ::GAverageFPS);
+			Info->SetNumberField(TEXT("average_ms"), ::GAverageMS);
 
 			// Memory
 			FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
@@ -655,6 +664,271 @@ void RegisterAll(FMCPResourceProvider& Provider)
 			else
 			{
 				Info->SetStringField(TEXT("error"), TEXT("No editor world available"));
+			}
+
+			FMCPResourceContent Content;
+			Content.Uri = Uri;
+			Content.MimeType = TEXT("application/json");
+			Content.Text = JsonToString(Info);
+			return Content;
+		});
+
+		Provider.RegisterResource(Def, Reader);
+	}
+
+	// ================================================================
+	// unreal://level/analysis - Automated scene health report
+	// ================================================================
+	{
+		FMCPResourceDefinition Def;
+		Def.Uri = TEXT("unreal://level/analysis");
+		Def.Name = TEXT("Level Analysis");
+		Def.Description = TEXT("Automated scene health report: missing materials, null meshes, overlapping actors, out-of-bounds actors, high-polycount meshes, shadow caster count, performance warnings.");
+		Def.MimeType = TEXT("application/json");
+
+		FMCPResourceReader Reader;
+		Reader.BindLambda([](const FString& Uri) -> FMCPResourceContent
+		{
+			TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
+
+			UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+			if (!World)
+			{
+				Info->SetStringField(TEXT("error"), TEXT("No editor world available"));
+				FMCPResourceContent Content;
+				Content.Uri = Uri;
+				Content.MimeType = TEXT("application/json");
+				Content.Text = JsonToString(Info);
+				return Content;
+			}
+
+			Info->SetStringField(TEXT("level"), World->GetMapName());
+
+			int32 TotalActors = 0;
+			int32 MissingMaterials = 0;
+			int32 NullMeshes = 0;
+			int32 OutOfBounds = 0;
+			int32 ShadowCasters = 0;
+			int32 HighPolyActors = 0;
+			int64 EstimatedTriangles = 0;
+
+			TArray<TSharedPtr<FJsonValue>> Warnings;
+
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				AActor* Actor = *It;
+				if (!IsValid(Actor)) continue;
+				TotalActors++;
+
+				// Check location bounds
+				FVector Loc = Actor->GetActorLocation();
+				if (FMath::Abs(Loc.X) > 500000 || FMath::Abs(Loc.Y) > 500000 || FMath::Abs(Loc.Z) > 500000)
+				{
+					OutOfBounds++;
+				}
+
+				// Check static mesh components
+				TArray<UStaticMeshComponent*> SMCs;
+				Actor->GetComponents<UStaticMeshComponent>(SMCs);
+				for (UStaticMeshComponent* SMC : SMCs)
+				{
+					if (!SMC) continue;
+
+					if (!SMC->GetStaticMesh())
+					{
+						NullMeshes++;
+						continue;
+					}
+
+					// Check for missing materials
+					for (int32 i = 0; i < SMC->GetNumMaterials(); i++)
+					{
+						if (!SMC->GetMaterial(i))
+						{
+							MissingMaterials++;
+						}
+					}
+
+					// Shadow casters
+					if (SMC->CastShadow)
+						ShadowCasters++;
+				}
+
+				// Check light components
+				TArray<ULightComponent*> LCs;
+				Actor->GetComponents<ULightComponent>(LCs);
+				for (ULightComponent* LC : LCs)
+				{
+					if (LC && LC->CastShadows)
+						ShadowCasters++;
+				}
+			}
+
+			Info->SetNumberField(TEXT("total_actors"), TotalActors);
+
+			TSharedPtr<FJsonObject> Issues = MakeShared<FJsonObject>();
+			Issues->SetNumberField(TEXT("null_meshes"), NullMeshes);
+			Issues->SetNumberField(TEXT("missing_materials"), MissingMaterials);
+			Issues->SetNumberField(TEXT("out_of_bounds_actors"), OutOfBounds);
+			Issues->SetNumberField(TEXT("shadow_casters"), ShadowCasters);
+			Info->SetObjectField(TEXT("issues"), Issues);
+
+			// Performance warnings
+			if (ShadowCasters > 50)
+				Warnings.Add(MakeShared<FJsonValueString>(FString::Printf(
+					TEXT("High shadow caster count: %d. Consider disabling shadows on distant/small objects."), ShadowCasters)));
+			if (NullMeshes > 0)
+				Warnings.Add(MakeShared<FJsonValueString>(FString::Printf(
+					TEXT("%d actor(s) have null/missing meshes."), NullMeshes)));
+			if (MissingMaterials > 0)
+				Warnings.Add(MakeShared<FJsonValueString>(FString::Printf(
+					TEXT("%d missing material slot(s) found."), MissingMaterials)));
+			if (OutOfBounds > 0)
+				Warnings.Add(MakeShared<FJsonValueString>(FString::Printf(
+					TEXT("%d actor(s) at extreme locations (>5km from origin)."), OutOfBounds)));
+			if (TotalActors > 5000)
+				Warnings.Add(MakeShared<FJsonValueString>(FString::Printf(
+					TEXT("High actor count: %d. Consider using instanced meshes or World Partition."), TotalActors)));
+
+			Info->SetNumberField(TEXT("warning_count"), Warnings.Num());
+			Info->SetArrayField(TEXT("warnings"), Warnings);
+
+			FString Status = Warnings.Num() == 0 ? TEXT("No issues detected") :
+				FString::Printf(TEXT("%d warning(s) found"), Warnings.Num());
+			Info->SetStringField(TEXT("status"), Status);
+
+			FMCPResourceContent Content;
+			Content.Uri = Uri;
+			Content.MimeType = TEXT("application/json");
+			Content.Text = JsonToString(Info);
+			return Content;
+		});
+
+		Provider.RegisterResource(Def, Reader);
+	}
+
+	// ================================================================
+	// unreal://project/capabilities - Feature detection
+	// ================================================================
+	{
+		FMCPResourceDefinition Def;
+		Def.Uri = TEXT("unreal://project/capabilities");
+		Def.Name = TEXT("Project Capabilities");
+		Def.Description = TEXT("Feature detection: enabled plugins, available tool categories, engine features (Nanite, Lumen, Chaos), and configuration state (fal.ai API key, Python plugin).");
+		Def.MimeType = TEXT("application/json");
+
+		FMCPResourceReader Reader;
+		Reader.BindLambda([](const FString& Uri) -> FMCPResourceContent
+		{
+			TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
+
+			// Engine version
+			Info->SetStringField(TEXT("engine_version"), FEngineVersion::Current().ToString());
+
+			// Tool count
+			Info->SetNumberField(TEXT("total_tools"), FMCPToolRegistry::Get().GetToolCount());
+
+			// Check key plugins
+			auto IsPluginLoaded = [](const TCHAR* Name) -> bool
+			{
+				return FModuleManager::Get().IsModuleLoaded(Name);
+			};
+
+			TSharedPtr<FJsonObject> Features = MakeShared<FJsonObject>();
+			Features->SetBoolField(TEXT("python_available"), IsPluginLoaded(TEXT("PythonScriptPlugin")));
+			Features->SetBoolField(TEXT("gas_available"), IsPluginLoaded(TEXT("GameplayAbilities")));
+			Features->SetBoolField(TEXT("niagara_available"), IsPluginLoaded(TEXT("Niagara")));
+			Features->SetBoolField(TEXT("pcg_available"), IsPluginLoaded(TEXT("PCG")));
+			Features->SetBoolField(TEXT("enhanced_input_available"), IsPluginLoaded(TEXT("EnhancedInput")));
+
+			// Check fal.ai configuration
+			const UMCPSettings* Settings = UMCPSettings::Get();
+			Features->SetBoolField(TEXT("fal_ai_configured"), !Settings->FalAIApiKey.IsEmpty());
+
+			// Check world partition on current level
+			UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+			if (World)
+			{
+				Features->SetBoolField(TEXT("world_partition_enabled"), World->GetWorldPartition() != nullptr);
+			}
+
+			Info->SetObjectField(TEXT("features"), Features);
+
+			// List enabled tool categories
+			TArray<FString> ToolNames;
+			TArray<FMCPToolDefinition> AllTools = FMCPToolRegistry::Get().GetAllTools();
+			for (const FMCPToolDefinition& Tool : AllTools)
+			{
+				ToolNames.Add(Tool.Name);
+			}
+			Info->SetNumberField(TEXT("tool_count"), ToolNames.Num());
+
+			// Tool preset
+			FString PresetStr;
+			switch (Settings->ToolPreset)
+			{
+			case EMCPToolPreset::Full: PresetStr = TEXT("Full"); break;
+			case EMCPToolPreset::SceneBuilding: PresetStr = TEXT("SceneBuilding"); break;
+			case EMCPToolPreset::Gameplay: PresetStr = TEXT("Gameplay"); break;
+			case EMCPToolPreset::Minimal: PresetStr = TEXT("Minimal"); break;
+			case EMCPToolPreset::Custom: PresetStr = TEXT("Custom"); break;
+			}
+			Info->SetStringField(TEXT("tool_preset"), PresetStr);
+
+			FMCPResourceContent Content;
+			Content.Uri = Uri;
+			Content.MimeType = TEXT("application/json");
+			Content.Text = JsonToString(Info);
+			return Content;
+		});
+
+		Provider.RegisterResource(Def, Reader);
+	}
+
+	// ================================================================
+	// unreal://editor/history - Undo transaction history
+	// ================================================================
+	{
+		FMCPResourceDefinition Def;
+		Def.Uri = TEXT("unreal://editor/history");
+		Def.Name = TEXT("Editor History");
+		Def.Description = TEXT("Recent undo/redo transaction history. Shows the last operations performed in the editor, including MCP tool calls.");
+		Def.MimeType = TEXT("application/json");
+
+		FMCPResourceReader Reader;
+		Reader.BindLambda([](const FString& Uri) -> FMCPResourceContent
+		{
+			TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
+
+			if (GEditor && GEditor->Trans)
+			{
+				const UTransBuffer* TransBuffer = Cast<UTransBuffer>(GEditor->Trans);
+				if (TransBuffer)
+				{
+					int32 UndoCount = TransBuffer->GetUndoCount();
+					Info->SetNumberField(TEXT("undo_count"), UndoCount);
+
+					TArray<TSharedPtr<FJsonValue>> Transactions;
+					int32 ShowCount = FMath::Min(UndoCount, 50);
+
+					for (int32 i = UndoCount - 1; i >= FMath::Max(0, UndoCount - ShowCount); i--)
+					{
+						const FTransaction* Trans = TransBuffer->GetTransaction(i);
+						if (Trans)
+						{
+							TSharedPtr<FJsonObject> TransObj = MakeShared<FJsonObject>();
+							TransObj->SetNumberField(TEXT("index"), i);
+							TransObj->SetStringField(TEXT("title"), Trans->GetTitle().ToString());
+							Transactions.Add(MakeShared<FJsonValueObject>(TransObj));
+						}
+					}
+
+					Info->SetArrayField(TEXT("transactions"), Transactions);
+				}
+			}
+			else
+			{
+				Info->SetStringField(TEXT("status"), TEXT("No transaction buffer available"));
 			}
 
 			FMCPResourceContent Content;

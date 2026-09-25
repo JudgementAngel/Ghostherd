@@ -1,6 +1,11 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPEditorTools.h"
+#include "MCPValidate.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
+#include "MCPSettings.h"
 
 #include "Editor.h"
 #include "Engine/World.h"
@@ -39,20 +44,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// focus_viewport - Focus the editor viewport
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Focus on this actor by label"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("Focus on this X position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Focus on this Y position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Focus on this Z position"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("distance"), TEXT("Camera distance from target (default: 500)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("focus_viewport");
-		Def.Description = TEXT("Focus the editor viewport camera on a specific actor or world position. Provide either actor_name or x/y/z coordinates.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "focus_viewport")
+		.Description(TEXT("Focus the editor viewport camera on a specific actor or world position. Provide either actor_name or x/y/z coordinates."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Focus on this actor by label"))
+		.NumberArg(TEXT("x"), TEXT("Focus on this X position"))
+		.NumberArg(TEXT("y"), TEXT("Focus on this Y position"))
+		.NumberArg(TEXT("z"), TEXT("Focus on this Z position"))
+		.NumberArg(TEXT("distance"), TEXT("Camera distance from target (default: 500)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FLevelEditorViewportClient* ViewportClient = GetActiveViewportClient();
 			if (!ViewportClient) return FMCPToolResult::Error(TEXT("No active viewport"));
@@ -93,36 +93,32 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Error(TEXT("Provide either actor_name or x/y/z coordinates"));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_viewport_camera - Set viewport camera position and rotation
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("Camera X position"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Camera Y position"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Camera Z position"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("pitch"), TEXT("Camera pitch (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("yaw"), TEXT("Camera yaw (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("roll"), TEXT("Camera roll (default: 0)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_viewport_camera");
-		Def.Description = TEXT("Set the editor viewport camera position and rotation directly.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_viewport_camera")
+		.Description(TEXT("Set the editor viewport camera position and rotation directly."))
+		.Idempotent()
+		.NumberArg(TEXT("x"), TEXT("Camera X position"), true)
+		.NumberArg(TEXT("y"), TEXT("Camera Y position"), true)
+		.NumberArg(TEXT("z"), TEXT("Camera Z position"), true)
+		.NumberArg(TEXT("pitch"), TEXT("Camera pitch (default: 0)"))
+		.NumberArg(TEXT("yaw"), TEXT("Camera yaw (default: 0)"))
+		.NumberArg(TEXT("roll"), TEXT("Camera roll (default: 0)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
+			// v4 (matrix-found): missing coords previously defaulted to 0 and the
+			// tool moved the camera to the origin while reporting success.
+			double X, Y, Z;
+			BAIL_IF_INVALID(FMCPValidate::RequiredNumber(Args, TEXT("x"), X));
+			BAIL_IF_INVALID(FMCPValidate::RequiredNumber(Args, TEXT("y"), Y));
+			BAIL_IF_INVALID(FMCPValidate::RequiredNumber(Args, TEXT("z"), Z));
+
 			FLevelEditorViewportClient* ViewportClient = GetActiveViewportClient();
 			if (!ViewportClient) return FMCPToolResult::Error(TEXT("No active viewport"));
 
-			FVector Location(
-				Args->GetNumberField(TEXT("x")),
-				Args->GetNumberField(TEXT("y")),
-				Args->GetNumberField(TEXT("z"))
-			);
+			FVector Location(X, Y, Z);
 			FRotator Rotation(
 				Args->HasField(TEXT("pitch")) ? Args->GetNumberField(TEXT("pitch")) : 0.0,
 				Args->HasField(TEXT("yaw")) ? Args->GetNumberField(TEXT("yaw")) : 0.0,
@@ -137,25 +133,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Camera set to Position(%.1f, %.1f, %.1f) Rotation(%.1f, %.1f, %.1f)"),
 				Location.X, Location.Y, Location.Z, Rotation.Pitch, Rotation.Yaw, Rotation.Roll));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// take_screenshot - Capture viewport as base64 JPEG image
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("width"), TEXT("Image width in pixels (default: 1280)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("height"), TEXT("Image height in pixels (default: 720)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("quality"), TEXT("JPEG quality 1-100 (default: 70)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("take_screenshot");
-		Def.Description = TEXT("Capture the current editor viewport as an image. Returns a base64-encoded JPEG. Useful for visual verification of scene state.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "take_screenshot")
+		.Description(TEXT("Capture the current editor viewport as an image. Returns a base64-encoded JPEG. Useful for visual verification of scene state."))
+		.ReadOnly()
+		.Idempotent()
+		.IntArg(TEXT("width"), TEXT("Image width in pixels (default: 1280)"))
+		.IntArg(TEXT("height"), TEXT("Image height in pixels (default: 720)"))
+		.IntArg(TEXT("quality"), TEXT("JPEG quality 1-100 (default: 70)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FLevelEditorViewportClient* ViewportClient = GetActiveViewportClient();
 			if (!ViewportClient) return FMCPToolResult::Error(TEXT("No active viewport"));
@@ -246,22 +235,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 					FinalW, FinalH, Quality, JpegData.Num() / 1024),
 				Base64, TEXT("image/jpeg"));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_selection - Get currently selected actors
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_selection");
-		Def.Description = TEXT("Get the list of currently selected actors in the editor.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_selection")
+		.Description(TEXT("Get the list of currently selected actors in the editor."))
+		.ReadOnly()
+		.Idempotent()
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			TArray<FString> SelectedNames;
 			USelection* Selection = GEditor->GetSelectedActors();
@@ -282,21 +264,14 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Selected %d actors:\n%s"),
 				SelectedNames.Num(), *FString::Join(SelectedNames, TEXT("\n"))));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// undo - Undo last operation
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("count"), TEXT("Number of undo steps (default: 1)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("undo");
-		Def.Description = TEXT("Undo the last editor operation(s). Equivalent to Ctrl+Z.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "undo")
+		.Description(TEXT("Undo the last editor operation(s). Equivalent to Ctrl+Z."))
+		.IntArg(TEXT("count"), TEXT("Number of undo steps (default: 1)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			int32 Count = 1;
 			if (Args->HasField(TEXT("count")))
@@ -313,21 +288,14 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Undid %d operation(s)"), Count));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// redo - Redo last undone operation
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("count"), TEXT("Number of redo steps (default: 1)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("redo");
-		Def.Description = TEXT("Redo the last undone operation(s). Equivalent to Ctrl+Y.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "redo")
+		.Description(TEXT("Redo the last undone operation(s). Equivalent to Ctrl+Y."))
+		.IntArg(TEXT("count"), TEXT("Number of redo steps (default: 1)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			int32 Count = 1;
 			if (Args->HasField(TEXT("count")))
@@ -342,25 +310,29 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Redid %d operation(s)"), Count));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// run_console_command - Execute a UE console command
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("command"), TEXT("Console command to execute (e.g., 'stat fps', 'show collision')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("run_console_command");
-		Def.Description = TEXT("Execute an Unreal Engine console command. Useful for toggling debug visualizations, changing rendering settings, and more.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "run_console_command")
+        .Destructive() // General code execution can exceed Scene effects.
+		.Description(TEXT("Execute an Unreal Engine console command. Useful for toggling debug visualizations, changing rendering settings, and more."))
+		.StringArg(TEXT("command"), TEXT("Console command to execute (e.g., 'stat fps', 'show collision')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString Command;
 			if (!Args->TryGetStringField(TEXT("command"), Command))
 				return FMCPToolResult::Error(TEXT("command is required"));
+
+			// Kill-switch: checked at execution time (not registration) so it
+			// takes effect without an editor restart and also covers calls
+			// routed through run_tool_script.
+			if (!UMCPSettings::Get()->bEnableConsoleCommands)
+			{
+				return FMCPToolResult::Error(TEXT(
+					"Console command execution is disabled. Enable 'Enable Console Commands' under "
+					"Project Settings > Plugins > Unreal MCP Server > Safety to allow it."));
+			}
 
 			// Safety check - block dangerous commands
 			FString UpperCmd = Command.ToUpper().TrimStartAndEnd();
@@ -377,8 +349,6 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Executed console command: %s"), *Command));
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPEditorTools

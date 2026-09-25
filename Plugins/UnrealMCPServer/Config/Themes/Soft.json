@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "name": "Soft",
+  "_comment": [
+    "Demonstrates the literal path: this theme pins its own palette with hex values",
+    "instead of referencing FStyleColors, so it looks the same regardless of which",
+    "editor theme is active. Larger radii, roomier spacing, warmer neutrals.",
+    "",
+    "Copy this file to Custom.json and edit freely \u2014 Custom.json is yours and is not",
+    "overwritten by plugin updates. Then set Project Settings \u25b8 Plugins \u25b8 Unreal MCP",
+    "Chat \u25b8 Theme Name to 'Custom'.",
+    "",
+    "Trade-off worth knowing: literal colours do NOT follow the editor theme. If you",
+    "switch the editor to Light, this stays dark. Mix and match \u2014 a literal accent with",
+    "referenced backgrounds is a perfectly good middle ground."
+  ],
+  "color": {
+    "bg": "#1A1A1EFF",
+    "panel": "#232329FF",
+    "header": "#2A2A31FF",
+    "input": "#26262DFF",
+    "inputBorder": "#3A3A44FF",
+    "fg": "#E4E4EAFF",
+    "fgSubdued": "#9A9AA6FF",
+    "accent": "#6E8BFFFF",
+    "accentHover": "#8AA1FFFF",
+    "ruleUser": "#6E8BFFAA",
+    "ruleAsst": "#57C7B8AA",
+    "success": "#57C77FFF",
+    "warning": "#E0B25CFF",
+    "error": "#E06C6CFF",
+    "codeBg": "#141418FF",
+    "separator": "#33333CFF",
+    "diffAdd": {
+      "ref": "@success",
+      "alpha": 0.16
+    },
+    "diffDel": {
+      "ref": "@error",
+      "alpha": 0.16
+    },
+    "onAccent": "#FFFFFFFF",
+    "codeInline": "#E0A85CFF",
+    "unrealRef": "#57C7B8FF",
+    "codeNormal": "#D8D8E0FF",
+    "codeKeyword": "#8AA1FFFF",
+    "codeString": "#8FD69EFF",
+    "codeComment": "#6B6B78FF",
+    "codeNumber": "#E0B25CFF",
+    "codePreproc": "#C99AE0FF",
+    "codeOperator": "#A8A8B4FF",
+    "readoutWarn": "#E0B25CFF",
+    "readoutOver": "#E06C6CFF"
+  },
+  "radius": {
+    "sm": 6,
+    "md": 10,
+    "lg": 14,
+    "pill": 999
+  },
+  "space": {
+    "xs": 4,
+    "sm": 10,
+    "md": 16,
+    "lg": 22,
+    "xl": 30,
+    "2xl": 40,
+    "controlW": 28,
+    "controlH": 20,
+    "chipMaxW": 240,
+    "popupMinW": 340,
+    "popupMaxH": 420,
+    "composerMinH": 24,
+    "composerMaxH": 168
+  },
+  "font": {
+    "family": "Regular",
+    "monoFamily": "Mono",
+    "body": 10,
+    "small": 8,
+    "mono": 9,
+    "h1": 16,
+    "h2": 13,
+    "h3": 11
+  },
+  "brush": {
+    "transcriptBg": {
+      "type": "box",
+      "fill": "@bg"
+    },
+    "railBg": {
+      "type": "box",
+      "fill": "@panel"
+    },
+    "headerBg": {
+      "type": "box",
+      "fill": "@header"
+    },
+    "composer": {
+      "type": "roundedBox",
+      "fill": "@input",
+      "radius": "md",
+      "outline": "@inputBorder",
+      "outlineWidth": 1
+    },
+    "composerFocused": {
+      "type": "roundedBox",
+      "fill": "@input",
+      "radius": "md",
+      "outline": "@accent",
+      "outlineWidth": 1
+    },
+    "toolCard": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm"
+    },
+    "toolCardError": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@error",
+      "outlineWidth": 1
+    },
+    "toolCardWarn": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@warning",
+      "outlineWidth": 1
+    },
+    "codeBlock": {
+      "type": "roundedBox",
+      "fill": "@codeBg",
+      "radius": "sm"
+    },
+    "chip": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "pill"
+    },
+    "sendButton": {
+      "type": "roundedBox",
+      "fill": "@accent",
+      "radius": "pill"
+    },
+    "sessionActive": {
+      "type": "roundedBox",
+      "fill": "@header",
+      "radius": "sm"
+    },
+    "chipPinned": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "pill",
+      "outline": "@accent",
+      "outlineWidth": 1
+    },
+    "chipError": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "pill",
+      "outline": "@warning",
+      "outlineWidth": 1
+    },
+    "popupBg": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "md",
+      "outline": "@separator",
+      "outlineWidth": 1
+    },
+    "popupRowActive": {
+      "type": "roundedBox",
+      "fill": "@accent",
+      "radius": "sm"
+    },
+    "pillMuted": {
+      "type": "roundedBox",
+      "fill": "@codeBg",
+      "radius": "pill"
+    }
+  },
+  "effects": {
+    "backgroundBlur": 0,
+    "messageEnterMs": 160,
+    "easing": "cubicOut"
+  }
+}

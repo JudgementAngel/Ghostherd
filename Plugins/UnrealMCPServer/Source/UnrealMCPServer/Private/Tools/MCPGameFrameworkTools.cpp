@@ -1,6 +1,9 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPGameFrameworkTools.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Engine/World.h"
 #include "Editor.h"
@@ -16,6 +19,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Factories/BlueprintFactory.h"
 #include "UObject/SavePackage.h"
+#include "Common/MCPAssetCreate.h"
 
 namespace MCPGameFrameworkTools
 {
@@ -36,13 +40,12 @@ static FMCPToolResult CreateFrameworkBlueprint(const FString& AssetPath, UClass*
 		return FMCPToolResult::Error(FString::Printf(TEXT("Parent class is null for %s"), *TypeLabel));
 	}
 
-	FString PackagePath = FPackageName::ObjectPathToPackageName(AssetPath);
-	FString AssetName = FPackageName::GetShortName(AssetPath);
-
-	UPackage* Package = CreatePackage(*PackagePath);
+	FString PackagePath, AssetName;
+	FMCPToolResult PackageError;
+	UPackage* Package = MCPCommon::CreateAssetPackage(AssetPath, PackagePath, AssetName, PackageError);
 	if (!Package)
 	{
-		return FMCPToolResult::Error(FString::Printf(TEXT("Failed to create package: %s"), *PackagePath));
+		return PackageError;
 	}
 
 	UBlueprintFactory* Factory = NewObject<UBlueprintFactory>();
@@ -90,21 +93,13 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// create_game_mode - Create a GameModeBase Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new GameMode Blueprint (e.g., '/Game/Blueprints/BP_MyGameMode')"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("display_name"), TEXT("Optional display name for the Blueprint"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("default_pawn_class"), TEXT("Content path to the default pawn class Blueprint (e.g., '/Game/Blueprints/BP_MyPawn')"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_game_mode");
-		Def.Description = TEXT("Create a new GameModeBase Blueprint. Optionally set the default pawn class. The GameMode controls match rules, spawning, and game flow.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = false;
-		Def.bDestructiveHint = false;
-		Def.bIdempotentHint = true;
-		Def.bOpenWorldHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_game_mode")
+		.Description(TEXT("Create a new GameModeBase Blueprint. Optionally set the default pawn class. The GameMode controls match rules, spawning, and game flow."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new GameMode Blueprint (e.g., '/Game/Blueprints/BP_MyGameMode')"), true)
+		.StringArg(TEXT("display_name"), TEXT("Optional display name for the Blueprint"))
+		.StringArg(TEXT("default_pawn_class"), TEXT("Content path to the default pawn class Blueprint (e.g., '/Game/Blueprints/BP_MyPawn')"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -150,25 +145,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return Result;
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_player_controller - Create a PlayerController Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new PlayerController Blueprint (e.g., '/Game/Blueprints/BP_MyPC')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_player_controller");
-		Def.Description = TEXT("Create a new PlayerController Blueprint. The PlayerController handles player input, camera management, and HUD interaction.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = false;
-		Def.bDestructiveHint = false;
-		Def.bIdempotentHint = true;
-		Def.bOpenWorldHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_player_controller")
+		.Description(TEXT("Create a new PlayerController Blueprint. The PlayerController handles player input, camera management, and HUD interaction."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new PlayerController Blueprint (e.g., '/Game/Blueprints/BP_MyPC')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -176,25 +161,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return CreateFrameworkBlueprint(AssetPath, APlayerController::StaticClass(), TEXT("PlayerController"));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_game_state - Create a GameStateBase Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new GameState Blueprint (e.g., '/Game/Blueprints/BP_MyGameState')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_game_state");
-		Def.Description = TEXT("Create a new GameStateBase Blueprint. The GameState holds replicated game-wide state such as scores, match timers, and team info.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = false;
-		Def.bDestructiveHint = false;
-		Def.bIdempotentHint = true;
-		Def.bOpenWorldHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_game_state")
+		.Description(TEXT("Create a new GameStateBase Blueprint. The GameState holds replicated game-wide state such as scores, match timers, and team info."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new GameState Blueprint (e.g., '/Game/Blueprints/BP_MyGameState')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -202,25 +177,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return CreateFrameworkBlueprint(AssetPath, AGameStateBase::StaticClass(), TEXT("GameState"));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_player_state - Create a PlayerState Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new PlayerState Blueprint (e.g., '/Game/Blueprints/BP_MyPlayerState')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_player_state");
-		Def.Description = TEXT("Create a new PlayerState Blueprint. The PlayerState holds replicated per-player data such as player name, score, and team assignment.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = false;
-		Def.bDestructiveHint = false;
-		Def.bIdempotentHint = true;
-		Def.bOpenWorldHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_player_state")
+		.Description(TEXT("Create a new PlayerState Blueprint. The PlayerState holds replicated per-player data such as player name, score, and team assignment."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new PlayerState Blueprint (e.g., '/Game/Blueprints/BP_MyPlayerState')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -228,25 +193,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return CreateFrameworkBlueprint(AssetPath, APlayerState::StaticClass(), TEXT("PlayerState"));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_hud - Create a HUD Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new HUD Blueprint (e.g., '/Game/Blueprints/BP_MyHUD')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_hud");
-		Def.Description = TEXT("Create a new HUD Blueprint. The HUD class handles drawing canvas-based UI elements and managing the player's heads-up display.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = false;
-		Def.bDestructiveHint = false;
-		Def.bIdempotentHint = true;
-		Def.bOpenWorldHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_hud")
+		.Description(TEXT("Create a new HUD Blueprint. The HUD class handles drawing canvas-based UI elements and managing the player's heads-up display."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new HUD Blueprint (e.g., '/Game/Blueprints/BP_MyHUD')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -254,24 +209,14 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return CreateFrameworkBlueprint(AssetPath, AHUD::StaticClass(), TEXT("HUD"));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_game_framework_info - Query current game framework setup
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_game_framework_info");
-		Def.Description = TEXT("Get the current world's game framework configuration. Returns the GameMode class and its configured default pawn, player controller, player state, HUD, and game state classes.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bDestructiveHint = false;
-		Def.bIdempotentHint = false;
-		Def.bOpenWorldHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_game_framework_info")
+		.Description(TEXT("Get the current world's game framework configuration. Returns the GameMode class and its configured default pawn, player controller, player state, HUD, and game state classes."))
+		.ReadOnly()
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
 			if (!World)
@@ -339,10 +284,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				}
 			}
 
-			return FMCPToolResult::Success(JsonToString(Info));
+			return FMCPToolResult::SuccessStructured(JsonToString(Info), Info);
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPGameFrameworkTools

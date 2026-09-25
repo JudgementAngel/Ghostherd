@@ -1,6 +1,10 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPAudioTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Editor.h"
 #include "Engine/World.h"
@@ -25,11 +29,8 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
 }
 
 void RegisterAll(FMCPToolRegistry& Registry)
@@ -37,22 +38,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// spawn_sound - Place an AmbientSound actor in the level
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("sound_path"), TEXT("Content path to the USoundBase asset (e.g., '/Game/Audio/SFX/SW_Ambience')"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("X position in the world (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Y position in the world (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Z position in the world (default: 0)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("label"), TEXT("Optional actor label shown in the scene outliner"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("volume_multiplier"), TEXT("Volume multiplier applied to the sound (default: 1.0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("pitch_multiplier"), TEXT("Pitch multiplier applied to the sound (default: 1.0)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("auto_activate"), TEXT("Whether the sound plays automatically when the actor is spawned (default: true)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("spawn_sound");
-		Def.Description = TEXT("Spawn an AmbientSound actor in the current level at a given world position. The sound_path must point to a valid USoundBase asset (SoundWave or SoundCue) in the content browser.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "spawn_sound")
+		.Description(TEXT("Spawn an AmbientSound actor in the current level at a given world position. The sound_path must point to a valid USoundBase asset (SoundWave or SoundCue) in the content browser."))
+		.StringArg(TEXT("sound_path"), TEXT("Content path to the USoundBase asset (e.g., '/Game/Audio/SFX/SW_Ambience')"), true)
+		.NumberArg(TEXT("x"), TEXT("X position in the world (default: 0)"))
+		.NumberArg(TEXT("y"), TEXT("Y position in the world (default: 0)"))
+		.NumberArg(TEXT("z"), TEXT("Z position in the world (default: 0)"))
+		.StringArg(TEXT("label"), TEXT("Optional actor label shown in the scene outliner"))
+		.NumberArg(TEXT("volume_multiplier"), TEXT("Volume multiplier applied to the sound (default: 1.0)"))
+		.NumberArg(TEXT("pitch_multiplier"), TEXT("Pitch multiplier applied to the sound (default: 1.0)"))
+		.BoolArg(TEXT("auto_activate"), TEXT("Whether the sound plays automatically when the actor is spawned (default: true)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -118,28 +114,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				VolumeMultiplier, PitchMultiplier,
 				bAutoActivate ? TEXT("true") : TEXT("false")));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_audio_properties - Set AudioComponent properties on an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor containing the AudioComponent"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("volume_multiplier"), TEXT("Volume multiplier to apply to the sound (0.0 - 2.0+)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("pitch_multiplier"), TEXT("Pitch multiplier to apply to the sound (0.1 - 4.0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("attenuation_distance"), TEXT("Override the maximum attenuation distance in cm"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("is_spatialized"), TEXT("Whether the sound is spatialized in 3D space"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("auto_activate"), TEXT("Whether the sound plays automatically when the actor begins play"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("sound_path"), TEXT("Optional content path to change the sound asset (e.g., '/Game/Audio/SFX/SW_Wind')"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_audio_properties");
-		Def.Description = TEXT("Set audio component properties on any actor that has a UAudioComponent. Only provided parameters are modified. Use sound_path to swap the sound asset.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_audio_properties")
+		.Description(TEXT("Set audio component properties on any actor that has a UAudioComponent. Only provided parameters are modified. Use sound_path to swap the sound asset."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor containing the AudioComponent"), true)
+		.NumberArg(TEXT("volume_multiplier"), TEXT("Volume multiplier to apply to the sound (0.0 - 2.0+)"))
+		.NumberArg(TEXT("pitch_multiplier"), TEXT("Pitch multiplier to apply to the sound (0.1 - 4.0)"))
+		.NumberArg(TEXT("attenuation_distance"), TEXT("Override the maximum attenuation distance in cm"))
+		.BoolArg(TEXT("is_spatialized"), TEXT("Whether the sound is spatialized in 3D space"))
+		.BoolArg(TEXT("auto_activate"), TEXT("Whether the sound plays automatically when the actor begins play"))
+		.StringArg(TEXT("sound_path"), TEXT("Optional content path to change the sound asset (e.g., '/Game/Audio/SFX/SW_Wind')"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -214,23 +203,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Updated %d audio properties on actor '%s'"), Changed, *ActorName));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_sound_info - Get information about a sound asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("sound_path"), TEXT("Content path to the USoundBase asset (e.g., '/Game/Audio/SFX/SW_Gunshot')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_sound_info");
-		Def.Description = TEXT("Get detailed information about a sound asset: type, duration, and for SoundWaves also channel count, sample rate, looping flag, and sound group.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_sound_info")
+		.Description(TEXT("Get detailed information about a sound asset: type, duration, and for SoundWaves also channel count, sample rate, looping flag, and sound group."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("sound_path"), TEXT("Content path to the USoundBase asset (e.g., '/Game/Audio/SFX/SW_Gunshot')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString SoundPath;
 			if (!Args->TryGetStringField(TEXT("sound_path"), SoundPath))
@@ -273,10 +255,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Result->SetStringField(TEXT("type"), Sound->GetClass()->GetName());
 			}
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPAudioTools

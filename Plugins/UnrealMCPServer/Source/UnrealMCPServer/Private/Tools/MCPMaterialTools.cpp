@@ -1,6 +1,9 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPMaterialTools.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Editor.h"
 #include "Materials/Material.h"
@@ -21,6 +24,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "EngineUtils.h"
 #include "Engine/Texture2D.h"
+#include "Common/MCPAssetCreate.h"
 
 namespace MCPMaterialTools
 {
@@ -30,30 +34,22 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// create_material - Create a new Material asset
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new material (e.g., '/Game/Materials/M_MyMaterial')"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("shading_model"), TEXT("Shading model"),
-			{ TEXT("DefaultLit"), TEXT("Unlit"), TEXT("Subsurface"), TEXT("ClearCoat"), TEXT("TwoSidedFoliage") });
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("blend_mode"), TEXT("Blend mode"),
-			{ TEXT("Opaque"), TEXT("Masked"), TEXT("Translucent"), TEXT("Additive") });
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("two_sided"), TEXT("Enable two-sided rendering (default: false)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_material");
-		Def.Description = TEXT("Create a new Material asset with specified shading model and blend mode. The material is saved and ready for parameter editing.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_material")
+		.Description(TEXT("Create a new Material asset with specified shading model and blend mode. The material is saved and ready for parameter editing."))
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new material (e.g., '/Game/Materials/M_MyMaterial')"), true)
+		.EnumArg(TEXT("shading_model"), TEXT("Shading model"), { TEXT("DefaultLit"), TEXT("Unlit"), TEXT("Subsurface"), TEXT("ClearCoat"), TEXT("TwoSidedFoliage") })
+		.EnumArg(TEXT("blend_mode"), TEXT("Blend mode"), { TEXT("Opaque"), TEXT("Masked"), TEXT("Translucent"), TEXT("Additive") })
+		.BoolArg(TEXT("two_sided"), TEXT("Enable two-sided rendering (default: false)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
 				return FMCPToolResult::Error(TEXT("asset_path is required"));
 
-			FString PackagePath = FPackageName::ObjectPathToPackageName(AssetPath);
-			FString AssetName = FPackageName::GetShortName(AssetPath);
-
-			UPackage* Package = CreatePackage(*PackagePath);
-			if (!Package) return FMCPToolResult::Error(TEXT("Failed to create package"));
+			FString PackagePath, AssetName;
+			FMCPToolResult PackageError;
+			UPackage* Package = MCPCommon::CreateAssetPackage(AssetPath, PackagePath, AssetName, PackageError);
+			if (!Package) return PackageError;
 
 			UMaterialFactoryNew* Factory = NewObject<UMaterialFactoryNew>();
 			UMaterial* NewMaterial = Cast<UMaterial>(Factory->FactoryCreateNew(
@@ -102,22 +98,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Created material '%s' at %s"), *AssetName, *AssetPath));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_material_instance - Create a Material Instance Constant
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Content path for the new MI"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("parent_path"), TEXT("Content path of the parent material"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_material_instance");
-		Def.Description = TEXT("Create a Material Instance Constant from a parent material. Parameters can then be set using set_material_scalar/set_material_vector.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_material_instance")
+		.Description(TEXT("Create a Material Instance Constant from a parent material. Parameters can then be set using set_material_scalar/set_material_vector."))
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new MI"), true)
+		.StringArg(TEXT("parent_path"), TEXT("Content path of the parent material"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath, ParentPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath)) return FMCPToolResult::Error(TEXT("asset_path required"));
@@ -126,11 +115,10 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			UMaterialInterface* Parent = LoadObject<UMaterialInterface>(nullptr, *ParentPath);
 			if (!Parent) return FMCPToolResult::Error(FString::Printf(TEXT("Parent material not found: %s"), *ParentPath));
 
-			FString PackagePath = FPackageName::ObjectPathToPackageName(AssetPath);
-			FString AssetName = FPackageName::GetShortName(AssetPath);
-
-			UPackage* Package = CreatePackage(*PackagePath);
-			if (!Package) return FMCPToolResult::Error(TEXT("Failed to create package"));
+			FString PackagePath, AssetName;
+			FMCPToolResult PackageError;
+			UPackage* Package = MCPCommon::CreateAssetPackage(AssetPath, PackagePath, AssetName, PackageError);
+			if (!Package) return PackageError;
 
 			UMaterialInstanceConstantFactoryNew* Factory = NewObject<UMaterialInstanceConstantFactoryNew>();
 			Factory->InitialParent = Parent;
@@ -151,24 +139,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Created material instance '%s' (parent: %s)"), *AssetName, *Parent->GetName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_material_scalar - Set scalar parameter on MI
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Material Instance path"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("parameter_name"), TEXT("Scalar parameter name"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("value"), TEXT("Scalar value"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_material_scalar");
-		Def.Description = TEXT("Set a scalar parameter value on a Material Instance Constant.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_material_scalar")
+		.Description(TEXT("Set a scalar parameter value on a Material Instance Constant."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Material Instance path"), true)
+		.StringArg(TEXT("parameter_name"), TEXT("Scalar parameter name"), true)
+		.NumberArg(TEXT("value"), TEXT("Scalar value"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath, ParamName;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath)) return FMCPToolResult::Error(TEXT("asset_path required"));
@@ -184,27 +165,20 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return FMCPToolResult::Success(FString::Printf(TEXT("Set '%s' = %f on '%s'"), *ParamName, Value, *MIC->GetName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_material_vector - Set vector parameter on MI
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"), TEXT("Material Instance path"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("parameter_name"), TEXT("Vector parameter name"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("r"), TEXT("Red channel (0-1)"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("g"), TEXT("Green channel (0-1)"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("b"), TEXT("Blue channel (0-1)"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("a"), TEXT("Alpha channel (0-1, default: 1)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_material_vector");
-		Def.Description = TEXT("Set a vector (color) parameter value on a Material Instance Constant.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_material_vector")
+		.Description(TEXT("Set a vector (color) parameter value on a Material Instance Constant."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Material Instance path"), true)
+		.StringArg(TEXT("parameter_name"), TEXT("Vector parameter name"), true)
+		.NumberArg(TEXT("r"), TEXT("Red channel (0-1)"), true)
+		.NumberArg(TEXT("g"), TEXT("Green channel (0-1)"), true)
+		.NumberArg(TEXT("b"), TEXT("Blue channel (0-1)"), true)
+		.NumberArg(TEXT("a"), TEXT("Alpha channel (0-1, default: 1)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath, ParamName;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath)) return FMCPToolResult::Error(TEXT("asset_path required"));
@@ -226,24 +200,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Set '%s' = (%.2f, %.2f, %.2f, %.2f) on '%s'"),
 				*ParamName, Color.R, Color.G, Color.B, Color.A, *MIC->GetName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// assign_material - Apply material to a mesh actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the target actor"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("material_path"), TEXT("Content path of the material to assign"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("slot_index"), TEXT("Material slot index (default: 0)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("assign_material");
-		Def.Description = TEXT("Assign a material to a static mesh actor's material slot. Works on any actor with a mesh component.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "assign_material")
+		.Description(TEXT("Assign a material to a static mesh actor's material slot. Works on any actor with a mesh component."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the target actor"), true)
+		.StringArg(TEXT("material_path"), TEXT("Content path of the material to assign"), true)
+		.IntArg(TEXT("slot_index"), TEXT("Material slot index (default: 0)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName, MaterialPath;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName)) return FMCPToolResult::Error(TEXT("actor_name required"));
@@ -280,8 +247,6 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Assigned '%s' to '%s' slot %d"),
 				*Material->GetName(), *ActorName, SlotIndex));
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPMaterialTools

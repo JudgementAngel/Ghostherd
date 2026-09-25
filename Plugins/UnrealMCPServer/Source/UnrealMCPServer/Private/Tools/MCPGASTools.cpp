@@ -1,5 +1,9 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPGASTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #if defined(WITH_GAMEPLAY_ABILITIES) && WITH_GAMEPLAY_ABILITIES
@@ -22,6 +26,7 @@
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 #include "FileHelpers.h"
+#include "Common/MCPAssetCreate.h"
 
 namespace MCPGASTools
 {
@@ -41,11 +46,8 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
 }
 
 static UBlueprint* FindBlueprint(const FString& AssetPath)
@@ -92,13 +94,10 @@ static UBlueprint* CreateGASBlueprint(const FString& AssetPath, const FString& P
 		return nullptr;
 	}
 
-	FString PackagePath = FPackageName::ObjectPathToPackageName(AssetPath);
-	FString AssetName = FPackageName::GetShortName(AssetPath);
-
-	UPackage* Package = CreatePackage(*PackagePath);
+	FString PackagePath, AssetName;
+	UPackage* Package = MCPCommon::CreateAssetPackage(AssetPath, PackagePath, AssetName, OutError);
 	if (!Package)
 	{
-		OutError = FString::Printf(TEXT("Failed to create package: %s"), *PackagePath);
 		return nullptr;
 	}
 
@@ -178,7 +177,7 @@ static FMCPToolResult ListGASAssets(const FString& BaseClassName, const FString&
 	ResultObj->SetNumberField(TEXT("count"), ResultArray.Num());
 	ResultObj->SetArrayField(TEXT("assets"), ResultArray);
 
-	return FMCPToolResult::Success(JsonToString(ResultObj));
+	return FMCPToolResult::SuccessStructured(JsonToString(ResultObj), ResultObj);
 }
 
 // ============================================================================
@@ -190,22 +189,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// create_gameplay_ability - Create a GameplayAbility Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path for the new ability Blueprint (e.g., '/Game/Abilities/GA_FireBlast')"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("ability_name"),
-			TEXT("Display name for the ability (set as the Blueprint's asset name if different from path)"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("parent_class"),
-			TEXT("Parent class name (default: 'GameplayAbility'). Can be a custom ability base class."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_gameplay_ability");
-		Def.Description = TEXT("Create a Blueprint inheriting from GameplayAbility (or a custom subclass). "
-			"Requires the GameplayAbilities plugin to be enabled. The parent class is resolved dynamically by name.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_gameplay_ability")
+		.Description(TEXT("Create a Blueprint inheriting from GameplayAbility (or a custom subclass). "
+			"Requires the GameplayAbilities plugin to be enabled. The parent class is resolved dynamically by name."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path for the new ability Blueprint (e.g., '/Game/Abilities/GA_FireBlast')"), true)
+		.StringArg(TEXT("ability_name"),
+			TEXT("Display name for the ability (set as the Blueprint's asset name if different from path)"))
+		.StringArg(TEXT("parent_class"),
+			TEXT("Parent class name (default: 'GameplayAbility'). Can be a custom ability base class."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -229,28 +223,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created GameplayAbility Blueprint '%s' (parent: %s) at %s"),
 				*NewBP->GetName(), *ParentClassName, *AssetPath));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_gameplay_effect - Create a GameplayEffect Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path for the new effect Blueprint (e.g., '/Game/Effects/GE_DamageOverTime')"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("duration_policy"),
-			TEXT("Duration policy for the effect"),
-			{TEXT("Instant"), TEXT("Infinite"), TEXT("HasDuration")});
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_gameplay_effect");
-		Def.Description = TEXT("Create a Blueprint inheriting from GameplayEffect. "
+	MCP_TOOL(Registry, "create_gameplay_effect")
+		.Description(TEXT("Create a Blueprint inheriting from GameplayEffect. "
 			"Optionally set the duration policy (Instant, Infinite, or HasDuration). "
-			"Requires the GameplayAbilities plugin to be enabled.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Requires the GameplayAbilities plugin to be enabled."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path for the new effect Blueprint (e.g., '/Game/Effects/GE_DamageOverTime')"), true)
+		.EnumArg(TEXT("duration_policy"),
+			TEXT("Duration policy for the effect"),
+			{TEXT("Instant"), TEXT("Infinite"), TEXT("HasDuration")})
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -300,27 +287,20 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created GameplayEffect Blueprint '%s' (duration: %s) at %s"),
 				*NewBP->GetName(), *DurationPolicy, *AssetPath));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// create_attribute_set - Create an AttributeSet Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path for the new AttributeSet Blueprint (e.g., '/Game/Attributes/AS_CharacterStats')"), true);
-		FMCPSchemaBuilder::AddStringArray(Schema, TEXT("attributes"),
-			TEXT("Array of attribute names to create as Float variables (e.g., [\"Health\", \"Mana\", \"Stamina\"])"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_attribute_set");
-		Def.Description = TEXT("Create a Blueprint inheriting from AttributeSet. "
+	MCP_TOOL(Registry, "create_attribute_set")
+		.Description(TEXT("Create a Blueprint inheriting from AttributeSet. "
 			"Optionally pre-populate it with named Float variables representing gameplay attributes. "
-			"Requires the GameplayAbilities plugin to be enabled.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Requires the GameplayAbilities plugin to be enabled."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path for the new AttributeSet Blueprint (e.g., '/Game/Attributes/AS_CharacterStats')"), true)
+		.StringArrayArg(TEXT("attributes"),
+			TEXT("Array of attribute names to create as Float variables (e.g., [\"Health\", \"Mana\", \"Stamina\"])"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -373,27 +353,20 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Created AttributeSet Blueprint '%s' at %s with attributes: [%s]"),
 				*NewBP->GetName(), *AssetPath, *AttrList));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// list_gameplay_abilities - List all GameplayAbility assets
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path"),
-			TEXT("Content path to search (e.g., '/Game/'). Default: '/Game/'"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_filter"),
-			TEXT("Filter by asset name (substring match, case-insensitive)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_gameplay_abilities");
-		Def.Description = TEXT("List all Blueprint assets that inherit from GameplayAbility. "
+	MCP_TOOL(Registry, "list_gameplay_abilities")
+		.Description(TEXT("List all Blueprint assets that inherit from GameplayAbility. "
 			"Searches the Asset Registry under the specified path. "
-			"Requires the GameplayAbilities plugin to be enabled.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Requires the GameplayAbilities plugin to be enabled."))
+		.ReadOnly()
+		.StringArg(TEXT("path"),
+			TEXT("Content path to search (e.g., '/Game/'). Default: '/Game/'"))
+		.StringArg(TEXT("name_filter"),
+			TEXT("Filter by asset name (substring match, case-insensitive)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString Path = TEXT("/Game/");
 			Args->TryGetStringField(TEXT("path"), Path);
@@ -403,27 +376,20 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return ListGASAssets(TEXT("GameplayAbility"), Path, NameFilter);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// list_gameplay_effects - List all GameplayEffect assets
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path"),
-			TEXT("Content path to search (e.g., '/Game/'). Default: '/Game/'"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_filter"),
-			TEXT("Filter by asset name (substring match, case-insensitive)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_gameplay_effects");
-		Def.Description = TEXT("List all Blueprint assets that inherit from GameplayEffect. "
+	MCP_TOOL(Registry, "list_gameplay_effects")
+		.Description(TEXT("List all Blueprint assets that inherit from GameplayEffect. "
 			"Searches the Asset Registry under the specified path. "
-			"Requires the GameplayAbilities plugin to be enabled.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Requires the GameplayAbilities plugin to be enabled."))
+		.ReadOnly()
+		.StringArg(TEXT("path"),
+			TEXT("Content path to search (e.g., '/Game/'). Default: '/Game/'"))
+		.StringArg(TEXT("name_filter"),
+			TEXT("Filter by asset name (substring match, case-insensitive)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString Path = TEXT("/Game/");
 			Args->TryGetStringField(TEXT("path"), Path);
@@ -433,27 +399,20 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return ListGASAssets(TEXT("GameplayEffect"), Path, NameFilter);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// list_attribute_sets - List all AttributeSet assets
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path"),
-			TEXT("Content path to search (e.g., '/Game/'). Default: '/Game/'"));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("name_filter"),
-			TEXT("Filter by asset name (substring match, case-insensitive)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("list_attribute_sets");
-		Def.Description = TEXT("List all Blueprint assets that inherit from AttributeSet. "
+	MCP_TOOL(Registry, "list_attribute_sets")
+		.Description(TEXT("List all Blueprint assets that inherit from AttributeSet. "
 			"Searches the Asset Registry under the specified path. "
-			"Requires the GameplayAbilities plugin to be enabled.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Requires the GameplayAbilities plugin to be enabled."))
+		.ReadOnly()
+		.StringArg(TEXT("path"),
+			TEXT("Content path to search (e.g., '/Game/'). Default: '/Game/'"))
+		.StringArg(TEXT("name_filter"),
+			TEXT("Filter by asset name (substring match, case-insensitive)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString Path = TEXT("/Game/");
 			Args->TryGetStringField(TEXT("path"), Path);
@@ -463,25 +422,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 
 			return ListGASAssets(TEXT("AttributeSet"), Path, NameFilter);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// add_ability_component - Add AbilitySystemComponent to a Blueprint
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("asset_path"),
-			TEXT("Content path of the target Blueprint to add the AbilitySystemComponent to (e.g., '/Game/Blueprints/BP_MyCharacter')"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("add_ability_component");
-		Def.Description = TEXT("Add an AbilitySystemComponent to a Blueprint's component hierarchy (SCS). "
+	MCP_TOOL(Registry, "add_ability_component")
+		.Description(TEXT("Add an AbilitySystemComponent to a Blueprint's component hierarchy (SCS). "
 			"The component class is resolved dynamically by name from the GameplayAbilities module. "
-			"Requires the GameplayAbilities plugin to be enabled.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Requires the GameplayAbilities plugin to be enabled."))
+		.Idempotent()
+		.StringArg(TEXT("asset_path"),
+			TEXT("Content path of the target Blueprint to add the AbilitySystemComponent to (e.g., '/Game/Blueprints/BP_MyCharacter')"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString AssetPath;
 			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
@@ -538,25 +490,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Added AbilitySystemComponent '%s' to Blueprint '%s'"),
 				*NewNode->GetVariableName().ToString(), *BP->GetName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_gas_info - Get GAS setup info for an actor in the level
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"),
-			TEXT("Label of the actor in the current level to inspect for GAS setup"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_gas_info");
-		Def.Description = TEXT("Get Gameplay Ability System setup information for an actor in the current level. "
+	MCP_TOOL(Registry, "get_gas_info")
+		.Description(TEXT("Get Gameplay Ability System setup information for an actor in the current level. "
 			"Reports whether the actor has an AbilitySystemComponent, lists granted abilities, "
-			"and active gameplay effects. Requires the GameplayAbilities plugin to be enabled.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"and active gameplay effects. Requires the GameplayAbilities plugin to be enabled."))
+		.ReadOnly()
+		.StringArg(TEXT("actor_name"),
+			TEXT("Label of the actor in the current level to inspect for GAS setup"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
@@ -611,7 +556,7 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				ResultObj->SetArrayField(TEXT("granted_abilities"), TArray<TSharedPtr<FJsonValue>>());
 				ResultObj->SetArrayField(TEXT("active_effects"), TArray<TSharedPtr<FJsonValue>>());
 
-				return FMCPToolResult::Success(JsonToString(ResultObj));
+				return FMCPToolResult::SuccessStructured(JsonToString(ResultObj), ResultObj);
 			}
 
 			// Gather ability and effect info using reflection (avoids hard dependency)
@@ -665,10 +610,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			ResultObj->SetArrayField(TEXT("granted_abilities"), AbilitiesArray);
 			ResultObj->SetArrayField(TEXT("active_effects"), EffectsArray);
 
-			return FMCPToolResult::Success(JsonToString(ResultObj));
+			return FMCPToolResult::SuccessStructured(JsonToString(ResultObj), ResultObj);
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPGASTools

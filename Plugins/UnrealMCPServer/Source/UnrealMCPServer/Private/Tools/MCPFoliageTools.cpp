@@ -1,5 +1,8 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPFoliageTools.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "FoliageType_InstancedStaticMesh.h"
@@ -93,21 +96,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// add_foliage_type - Register a static mesh as a foliage type
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("mesh_path"),
-			TEXT("Content path to the StaticMesh asset (e.g., '/Game/Foliage/SM_Tree')"),
-			/*bRequired=*/true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("add_foliage_type");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "add_foliage_type")
+		.Description(TEXT(
 			"Register a static mesh as a foliage type on the level's InstancedFoliageActor. "
 			"If a foliage type for this mesh already exists it is returned unchanged. "
-			"Use paint_foliage afterwards to scatter instances.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Use paint_foliage afterwards to scatter instances."))
+		.Idempotent()
+		.StringArg(TEXT("mesh_path"),
+			TEXT("Content path to the StaticMesh asset (e.g., '/Game/Foliage/SM_Tree')"),
+			/*bRequired=*/true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -171,44 +169,37 @@ void RegisterAll(FMCPToolRegistry& Registry)
 					*Mesh->GetName(),
 					*OutSettings->GetName()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// paint_foliage - Scatter foliage instances at a location
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("mesh_path"),
-			TEXT("Content path to the StaticMesh used as the foliage type"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"),
-			TEXT("Center X position in world space"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"),
-			TEXT("Center Y position in world space"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"),
-			TEXT("Center Z position (used as trace start height; ground is found via line trace)"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("radius"),
-			TEXT("Scatter radius in cm around the center point (default: 500)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("count"),
-			TEXT("Number of instances to add (default: 10)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("random_scale_min"),
-			TEXT("Minimum uniform random scale applied to each instance (default: 0.8)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("random_scale_max"),
-			TEXT("Maximum uniform random scale applied to each instance (default: 1.2)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("paint_foliage");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "paint_foliage")
+		.Description(TEXT(
 			"Scatter foliage instances randomly within a radius around a world-space center. "
 			"The foliage type is found or created automatically from the given mesh. "
 			"A downward line trace finds the ground surface so instances sit correctly on "
-			"terrain or geometry.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"terrain or geometry."))
+		.StringArg(TEXT("mesh_path"),
+			TEXT("Content path to the StaticMesh used as the foliage type"),
+			/*bRequired=*/true)
+		.NumberArg(TEXT("x"),
+			TEXT("Center X position in world space"),
+			/*bRequired=*/true)
+		.NumberArg(TEXT("y"),
+			TEXT("Center Y position in world space"),
+			/*bRequired=*/true)
+		.NumberArg(TEXT("z"),
+			TEXT("Center Z position (used as trace start height; ground is found via line trace)"),
+			/*bRequired=*/true)
+		.NumberArg(TEXT("radius"),
+			TEXT("Scatter radius in cm around the center point (default: 500)"))
+		.IntArg(TEXT("count"),
+			TEXT("Number of instances to add (default: 10)"))
+		.NumberArg(TEXT("random_scale_min"),
+			TEXT("Minimum uniform random scale applied to each instance (default: 0.8)"))
+		.NumberArg(TEXT("random_scale_max"),
+			TEXT("Maximum uniform random scale applied to each instance (default: 1.2)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -231,11 +222,13 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			const float CenterX  = (float)Args->GetNumberField(TEXT("x"));
 			const float CenterY  = (float)Args->GetNumberField(TEXT("y"));
 			const float CenterZ  = (float)Args->GetNumberField(TEXT("z"));
+			// v4 Phase 0 (bug fix): clamp in double-space BEFORE the int cast —
+			// casting an out-of-range double (e.g. 1e10) to int32 is undefined behavior.
 			const float Radius   = Args->HasField(TEXT("radius"))
-			                       ? (float)Args->GetNumberField(TEXT("radius"))
+			                       ? (float)FMath::Clamp(Args->GetNumberField(TEXT("radius")), 1.0, 1000000.0)
 			                       : 500.0f;
 			const int32 Count    = Args->HasField(TEXT("count"))
-			                       ? FMath::Clamp((int32)Args->GetNumberField(TEXT("count")), 1, 10000)
+			                       ? (int32)FMath::Clamp(Args->GetNumberField(TEXT("count")), 1.0, 10000.0)
 			                       : 10;
 			float ScaleMin       = Args->HasField(TEXT("random_scale_min"))
 			                       ? (float)Args->GetNumberField(TEXT("random_scale_min"))
@@ -343,38 +336,31 @@ void RegisterAll(FMCPToolRegistry& Registry)
 					Radius,
 					CenterX, CenterY, CenterZ));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// erase_foliage - Remove foliage instances in a radius
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"),
-			TEXT("Center X position in world space"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"),
-			TEXT("Center Y position in world space"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"),
-			TEXT("Center Z position in world space"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("radius"),
-			TEXT("Radius in cm within which instances are removed"),
-			/*bRequired=*/true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("mesh_path"),
-			TEXT("Optional: limit erasure to foliage using this mesh. Leave empty to erase all types."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("erase_foliage");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "erase_foliage")
+		.Description(TEXT(
 			"Remove foliage instances within a spherical radius around a world-space center. "
 			"If mesh_path is provided only instances of that foliage type are erased; "
-			"otherwise all foliage types are affected.");
-		Def.InputSchema = Schema;
-		Def.bDestructiveHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"otherwise all foliage types are affected."))
+		.Destructive()
+		.NumberArg(TEXT("x"),
+			TEXT("Center X position in world space"),
+			/*bRequired=*/true)
+		.NumberArg(TEXT("y"),
+			TEXT("Center Y position in world space"),
+			/*bRequired=*/true)
+		.NumberArg(TEXT("z"),
+			TEXT("Center Z position in world space"),
+			/*bRequired=*/true)
+		.NumberArg(TEXT("radius"),
+			TEXT("Radius in cm within which instances are removed"),
+			/*bRequired=*/true)
+		.StringArg(TEXT("mesh_path"),
+			TEXT("Optional: limit erasure to foliage using this mesh. Leave empty to erase all types."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -391,7 +377,7 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			const float CenterX  = (float)Args->GetNumberField(TEXT("x"));
 			const float CenterY  = (float)Args->GetNumberField(TEXT("y"));
 			const float CenterZ  = (float)Args->GetNumberField(TEXT("z"));
-			const float Radius   = (float)Args->GetNumberField(TEXT("radius"));
+			const float Radius   = (float)FMath::Clamp(Args->GetNumberField(TEXT("radius")), 1.0, 1000000.0);
 			const float RadiusSq = Radius * Radius;
 
 			FString FilterMeshPath;
@@ -488,26 +474,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 					Radius,
 					CenterX, CenterY, CenterZ));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_foliage_stats - Get instance counts per foliage type
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		// No required parameters
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_foliage_stats");
-		Def.Description = TEXT(
+	MCP_TOOL(Registry, "get_foliage_stats")
+		.Description(TEXT(
 			"Return a summary of all foliage types registered in the current level, "
 			"including the static mesh name and total instance count for each type. "
-			"Returns an empty list when no InstancedFoliageActor exists in the level.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			"Returns an empty list when no InstancedFoliageActor exists in the level."))
+		.ReadOnly()
+		.Idempotent()
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World)
@@ -576,10 +554,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			ResultObj->SetNumberField(TEXT("total_types"),     TotalTypes);
 			ResultObj->SetNumberField(TEXT("total_instances"), TotalInstances);
 
-			return FMCPToolResult::Success(JsonToString(ResultObj));
+			return FMCPToolResult::SuccessStructured(JsonToString(ResultObj), ResultObj);
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPFoliageTools

@@ -1,5 +1,8 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPSplineTools.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 #include "Engine/World.h"
 #include "Editor.h"
@@ -35,21 +38,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// create_spline_actor - Spawn an actor with a spline component
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("label"), TEXT("Actor label in the scene outliner"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("X position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Y position (default: 0)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Z position (default: 0)"));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("num_points"), TEXT("Number of initial spline points (default: 2)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("point_spacing"), TEXT("Distance between initial points along X axis (default: 500)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("create_spline_actor");
-		Def.Description = TEXT("Spawn a new actor with a USplineComponent. Creates an initial spline with the specified number of points evenly spaced along the X axis.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "create_spline_actor")
+		.Description(TEXT("Spawn a new actor with a USplineComponent. Creates an initial spline with the specified number of points evenly spaced along the X axis."))
+		.Idempotent()
+		.StringArg(TEXT("label"), TEXT("Actor label in the scene outliner"))
+		.NumberArg(TEXT("x"), TEXT("X position (default: 0)"))
+		.NumberArg(TEXT("y"), TEXT("Y position (default: 0)"))
+		.NumberArg(TEXT("z"), TEXT("Z position (default: 0)"))
+		.IntArg(TEXT("num_points"), TEXT("Number of initial spline points (default: 2)"))
+		.NumberArg(TEXT("point_spacing"), TEXT("Distance between initial points along X axis (default: 500)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -114,25 +112,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				*SplineActor->GetActorLabel(), SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z,
 				NumPoints, PointSpacing));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// add_spline_point - Add a new point to an existing spline
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("X position of the new point (local space)"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("Y position of the new point (local space)"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("Z position of the new point (local space)"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("index"), TEXT("Insert at this index. If omitted, appends to the end."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("add_spline_point");
-		Def.Description = TEXT("Add a point to an existing spline at the specified local-space position. If index is omitted the point is appended at the end.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "add_spline_point")
+		.Description(TEXT("Add a point to an existing spline at the specified local-space position. If index is omitted the point is appended at the end."))
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true)
+		.NumberArg(TEXT("x"), TEXT("X position of the new point (local space)"), true)
+		.NumberArg(TEXT("y"), TEXT("Y position of the new point (local space)"), true)
+		.NumberArg(TEXT("z"), TEXT("Z position of the new point (local space)"), true)
+		.IntArg(TEXT("index"), TEXT("Insert at this index. If omitted, appends to the end."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
@@ -176,32 +167,25 @@ void RegisterAll(FMCPToolRegistry& Registry)
 					Spline->GetNumberOfSplinePoints()));
 			}
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_spline_point - Modify an existing spline point
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("index"), TEXT("Index of the spline point to modify"), true);
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("New X position (local space)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("New Y position (local space)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("New Z position (local space)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("arrive_tangent_x"), TEXT("Arrive tangent X component"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("arrive_tangent_y"), TEXT("Arrive tangent Y component"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("arrive_tangent_z"), TEXT("Arrive tangent Z component"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("leave_tangent_x"), TEXT("Leave tangent X component"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("leave_tangent_y"), TEXT("Leave tangent Y component"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("leave_tangent_z"), TEXT("Leave tangent Z component"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_spline_point");
-		Def.Description = TEXT("Modify the position and/or tangents of an existing spline point. Only provided fields are changed; omitted fields keep their current values.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_spline_point")
+		.Description(TEXT("Modify the position and/or tangents of an existing spline point. Only provided fields are changed; omitted fields keep their current values."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true)
+		.IntArg(TEXT("index"), TEXT("Index of the spline point to modify"), true)
+		.NumberArg(TEXT("x"), TEXT("New X position (local space)"))
+		.NumberArg(TEXT("y"), TEXT("New Y position (local space)"))
+		.NumberArg(TEXT("z"), TEXT("New Z position (local space)"))
+		.NumberArg(TEXT("arrive_tangent_x"), TEXT("Arrive tangent X component"))
+		.NumberArg(TEXT("arrive_tangent_y"), TEXT("Arrive tangent Y component"))
+		.NumberArg(TEXT("arrive_tangent_z"), TEXT("Arrive tangent Z component"))
+		.NumberArg(TEXT("leave_tangent_x"), TEXT("Leave tangent X component"))
+		.NumberArg(TEXT("leave_tangent_y"), TEXT("Leave tangent Y component"))
+		.NumberArg(TEXT("leave_tangent_z"), TEXT("Leave tangent Z component"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
@@ -261,23 +245,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Updated spline point %d on '%s' to (%.1f, %.1f, %.1f)"),
 				Index, *ActorName, FinalPos.X, FinalPos.Y, FinalPos.Z));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// remove_spline_point - Remove a point from a spline
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("index"), TEXT("Index of the spline point to remove"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("remove_spline_point");
-		Def.Description = TEXT("Remove a spline point by index. Remaining points are re-indexed automatically.");
-		Def.InputSchema = Schema;
-		Def.bDestructiveHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "remove_spline_point")
+		.Description(TEXT("Remove a spline point by index. Remaining points are re-indexed automatically."))
+		.Destructive()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true)
+		.IntArg(TEXT("index"), TEXT("Index of the spline point to remove"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
@@ -313,22 +290,15 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Removed spline point %d from '%s'. Remaining points: %d"),
 				Index, *ActorName, Spline->GetNumberOfSplinePoints()));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_spline_info - Return spline metadata and all points
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_spline_info");
-		Def.Description = TEXT("Get detailed information about a spline: point count, total length, closed-loop state, and all point positions with tangents.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_spline_info")
+		.Description(TEXT("Get detailed information about a spline: point count, total length, closed-loop state, and all point positions with tangents."))
+		.ReadOnly()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
@@ -386,25 +356,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			}
 
 			Result->SetArrayField(TEXT("points"), PointsArray);
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_spline_closed - Toggle closed loop on/off
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("closed"), TEXT("True to close the spline loop, false to open it"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_spline_closed");
-		Def.Description = TEXT("Set whether the spline forms a closed loop. When closed, the last point connects back to the first.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_spline_closed")
+		.Description(TEXT("Set whether the spline forms a closed loop. When closed, the last point connects back to the first."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true)
+		.BoolArg(TEXT("closed"), TEXT("True to close the spline loop, false to open it"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
@@ -428,25 +391,18 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Set spline on '%s' closed loop = %s"),
 				*ActorName, bClosed ? TEXT("true") : TEXT("false")));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_spline_type - Set the point type (interpolation mode)
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("index"), TEXT("Index of the spline point to modify"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("type"), TEXT("Spline point interpolation type"),
-			{ TEXT("Linear"), TEXT("Curve"), TEXT("Constant"), TEXT("CurveClamped") }, true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_spline_type");
-		Def.Description = TEXT("Set the interpolation type of a spline point. Linear produces straight segments, Curve uses smooth Hermite interpolation, Constant holds the value, CurveClamped prevents overshoot.");
-		Def.InputSchema = Schema;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_spline_type")
+		.Description(TEXT("Set the interpolation type of a spline point. Linear produces straight segments, Curve uses smooth Hermite interpolation, Constant holds the value, CurveClamped prevents overshoot."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor with a SplineComponent"), true)
+		.IntArg(TEXT("index"), TEXT("Index of the spline point to modify"), true)
+		.EnumArg(TEXT("type"), TEXT("Spline point interpolation type"),
+			{ TEXT("Linear"), TEXT("Curve"), TEXT("Constant"), TEXT("CurveClamped") }, true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			FString ActorName;
 			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
@@ -487,8 +443,6 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Set spline point %d on '%s' to type '%s'"),
 				Index, *ActorName, *TypeStr));
 		});
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPSplineTools

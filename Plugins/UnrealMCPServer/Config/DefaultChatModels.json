@@ -1,0 +1,377 @@
+{
+  "version": 1,
+  "_comment": [
+    "Model catalogue. This is DATA, not code \u2014 the provider landscape moves faster",
+    "than plugin releases, so nothing here is compiled in. Add rows freely; the",
+    "settings UI and the request builder both read this file.",
+    "",
+    "The load-bearing field is \"sampling\". Claude Opus 5, Sonnet 5, Opus 4.8/4.7",
+    "and Fable 5 REJECT temperature/top_p/top_k with a 400. Setting sampling:false",
+    "makes the AI-settings panel hide those sliders and makes the request builder",
+    "omit the parameters entirely, instead of sending something that errors.",
+    "",
+    "\"thinking\": adaptive | none",
+    "   adaptive -> {\"type\":\"adaptive\"}. budget_tokens is REMOVED on current",
+    "   Claude models and returns 400; there is no numeric-budget option here.",
+    "",
+    "\"effort\": the levels the model accepts inside output_config. Empty = no",
+    "   effort control, so the panel hides it.",
+    "",
+    "\"cacheMinTokens\": prompt-cache minimum. Below this a cache_control marker is",
+    "   silently ignored, so we don't bother sending one.",
+    "",
+    "Prices are USD per million tokens and are used only for the cost estimate.",
+    "Verify against the provider's pricing page before trusting them."
+  ],
+  "providers": [
+    {
+      "id": "anthropic",
+      "displayName": "Anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "wireFormat": "anthropic",
+      "authHeader": "x-api-key",
+      "requiresKey": true,
+      "extraHeaders": {
+        "anthropic-version": "2023-06-01"
+      }
+    },
+    {
+      "id": "openai",
+      "displayName": "OpenAI",
+      "baseUrl": "https://api.openai.com/v1",
+      "wireFormat": "openai",
+      "authHeader": "Authorization",
+      "authPrefix": "Bearer ",
+      "requiresKey": true
+    },
+    {
+      "id": "openrouter",
+      "displayName": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "wireFormat": "openai",
+      "authHeader": "Authorization",
+      "authPrefix": "Bearer ",
+      "requiresKey": true
+    },
+    {
+      "id": "ollama",
+      "displayName": "Ollama (local)",
+      "baseUrl": "http://localhost:11434/v1",
+      "wireFormat": "openai",
+      "requiresKey": false
+    },
+    {
+      "id": "lmstudio",
+      "displayName": "LM Studio (local)",
+      "baseUrl": "http://localhost:1234/v1",
+      "wireFormat": "openai",
+      "requiresKey": false
+    },
+    {
+      "id": "groq",
+      "displayName": "Groq",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "wireFormat": "openai",
+      "authHeader": "Authorization",
+      "authPrefix": "Bearer ",
+      "requiresKey": true
+    },
+    {
+      "id": "deepseek",
+      "displayName": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "wireFormat": "openai",
+      "authHeader": "Authorization",
+      "authPrefix": "Bearer ",
+      "requiresKey": true
+    }
+  ],
+  "models": [
+    {
+      "id": "claude-opus-5",
+      "provider": "anthropic",
+      "displayName": "Claude Opus 5",
+      "context": 1000000,
+      "maxOutput": 128000,
+      "priceIn": 5.0,
+      "priceOut": 25.0,
+      "vision": true,
+      "tools": true,
+      "sampling": false,
+      "thinking": "adaptive",
+      "effort": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "cacheMinTokens": 512,
+      "notes": "Thinking is ON by default. max_tokens caps thinking + response text together."
+    },
+    {
+      "id": "claude-sonnet-5",
+      "provider": "anthropic",
+      "displayName": "Claude Sonnet 5",
+      "context": 1000000,
+      "maxOutput": 128000,
+      "priceIn": 3.0,
+      "priceOut": 15.0,
+      "vision": true,
+      "tools": true,
+      "sampling": false,
+      "thinking": "adaptive",
+      "effort": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "displayName": "Claude Haiku 4.5",
+      "context": 200000,
+      "maxOutput": 64000,
+      "priceIn": 1.0,
+      "priceOut": 5.0,
+      "vision": true,
+      "tools": true,
+      "sampling": true,
+      "thinking": "none",
+      "effort": [],
+      "cacheMinTokens": 4096
+    },
+    {
+      "id": "claude-opus-4-8",
+      "provider": "anthropic",
+      "displayName": "Claude Opus 4.8",
+      "context": 1000000,
+      "maxOutput": 128000,
+      "priceIn": 5.0,
+      "priceOut": 25.0,
+      "vision": true,
+      "tools": true,
+      "sampling": false,
+      "thinking": "adaptive",
+      "effort": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "cacheMinTokens": 1024,
+      "notes": "Omitting the thinking field means NO thinking here, unlike Opus 5."
+    },
+    {
+      "id": "claude-fable-5",
+      "provider": "anthropic",
+      "displayName": "Claude Fable 5",
+      "context": 1000000,
+      "maxOutput": 128000,
+      "priceIn": 10.0,
+      "priceOut": 50.0,
+      "vision": true,
+      "tools": true,
+      "sampling": false,
+      "thinking": "adaptive",
+      "effort": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "cacheMinTokens": 512,
+      "notes": "Thinking always on \u2014 an explicit thinking:{type:disabled} returns 400. Requires 30-day data retention."
+    },
+    {
+      "id": "gpt-5",
+      "provider": "openai",
+      "display": "GPT-5",
+      "context": 400000,
+      "maxOutput": 128000,
+      "priceIn": 1.25,
+      "priceOut": 10.0,
+      "vision": true,
+      "tools": true,
+      "sampling": false,
+      "effort": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "gpt-5-mini",
+      "provider": "openai",
+      "display": "GPT-5 mini",
+      "context": 400000,
+      "maxOutput": 128000,
+      "priceIn": 0.25,
+      "priceOut": 2.0,
+      "vision": true,
+      "tools": true,
+      "sampling": false,
+      "effort": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "gpt-4.1",
+      "provider": "openai",
+      "display": "GPT-4.1",
+      "context": 1047576,
+      "maxOutput": 32768,
+      "priceIn": 2.0,
+      "priceOut": 8.0,
+      "vision": true,
+      "tools": true,
+      "sampling": true,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "o4-mini",
+      "provider": "openai",
+      "display": "o4-mini",
+      "context": 200000,
+      "maxOutput": 100000,
+      "priceIn": 1.1,
+      "priceOut": 4.4,
+      "vision": true,
+      "tools": true,
+      "sampling": false,
+      "effort": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "anthropic/claude-sonnet-5",
+      "provider": "openrouter",
+      "display": "Claude Sonnet 5 (OpenRouter)",
+      "context": 1000000,
+      "maxOutput": 64000,
+      "priceIn": 3.0,
+      "priceOut": 15.0,
+      "vision": true,
+      "tools": true,
+      "sampling": false,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "google/gemini-3-pro",
+      "provider": "openrouter",
+      "display": "Gemini 3 Pro (OpenRouter)",
+      "context": 1000000,
+      "maxOutput": 65536,
+      "priceIn": 1.25,
+      "priceOut": 10.0,
+      "vision": true,
+      "tools": true,
+      "sampling": true,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "deepseek/deepseek-r1",
+      "provider": "openrouter",
+      "display": "DeepSeek R1 (OpenRouter)",
+      "context": 164000,
+      "maxOutput": 32768,
+      "priceIn": 0.4,
+      "priceOut": 2.0,
+      "vision": false,
+      "tools": true,
+      "sampling": true,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "deepseek-chat",
+      "provider": "deepseek",
+      "display": "DeepSeek Chat",
+      "context": 128000,
+      "maxOutput": 8192,
+      "priceIn": 0.27,
+      "priceOut": 1.1,
+      "vision": false,
+      "tools": true,
+      "sampling": true,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "deepseek-reasoner",
+      "provider": "deepseek",
+      "display": "DeepSeek Reasoner",
+      "context": 128000,
+      "maxOutput": 64000,
+      "priceIn": 0.55,
+      "priceOut": 2.19,
+      "vision": false,
+      "tools": true,
+      "sampling": false,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "llama-3.3-70b-versatile",
+      "provider": "groq",
+      "display": "Llama 3.3 70B (Groq)",
+      "context": 128000,
+      "maxOutput": 32768,
+      "priceIn": 0.59,
+      "priceOut": 0.79,
+      "vision": false,
+      "tools": true,
+      "sampling": true,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "qwen3-coder:30b",
+      "provider": "ollama",
+      "display": "Qwen3 Coder 30B",
+      "context": 256000,
+      "maxOutput": 32768,
+      "priceIn": 0.0,
+      "priceOut": 0.0,
+      "vision": false,
+      "tools": true,
+      "sampling": true,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "llama3.3:70b",
+      "provider": "ollama",
+      "display": "Llama 3.3 70B",
+      "context": 128000,
+      "maxOutput": 8192,
+      "priceIn": 0.0,
+      "priceOut": 0.0,
+      "vision": false,
+      "tools": true,
+      "sampling": true,
+      "cacheMinTokens": 1024
+    },
+    {
+      "id": "local-model",
+      "provider": "lmstudio",
+      "display": "LM Studio (loaded model)",
+      "context": 128000,
+      "maxOutput": 8192,
+      "priceIn": 0.0,
+      "priceOut": 0.0,
+      "vision": false,
+      "tools": true,
+      "sampling": true,
+      "cacheMinTokens": 1024
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "name": "Editor",
+  "_comment": [
+    "Default theme. Every colour is a SEMANTIC REFERENCE (@FStyleColors::Slot), so the",
+    "panel follows your editor theme automatically \u2014 switch the editor to Light and this",
+    "follows with no edit here.",
+    "",
+    "Edit this file and save: the panel restyles within a second, no recompile and no",
+    "editor restart. Console: MCPChat.ReloadTheme / MCPChat.ListThemes.",
+    "",
+    "Colour value forms:",
+    "  \"@FStyleColors::Panel\"            semantic reference \u2014 follows the editor theme",
+    "  \"@accent\"                         reference to another token in this file",
+    "  \"#1B1B1BFF\"                       sRGB literal \u2014 opts OUT of editor theming",
+    "  {\"ref\": \"@accent\", \"alpha\": 0.5}   snapshot of a reference with alpha applied",
+    "",
+    "Radius values: a token name (\"md\"), a number (6), or per-corner [TL, TR, BL, BR]."
+  ],
+  "color": {
+    "bg": "@FStyleColors::Recessed",
+    "panel": "@FStyleColors::Panel",
+    "header": "@FStyleColors::Header",
+    "input": "@FStyleColors::Input",
+    "inputBorder": "@FStyleColors::InputOutline",
+    "fg": "@FStyleColors::Foreground",
+    "fgSubdued": {
+      "ref": "@FStyleColors::Foreground",
+      "alpha": 0.6
+    },
+    "accent": "@FStyleColors::Primary",
+    "accentHover": "@FStyleColors::PrimaryHover",
+    "ruleUser": {
+      "ref": "@FStyleColors::Primary",
+      "alpha": 0.55
+    },
+    "ruleAsst": {
+      "ref": "@FStyleColors::AccentBlue",
+      "alpha": 0.55
+    },
+    "success": "@FStyleColors::Success",
+    "warning": "@FStyleColors::Warning",
+    "error": "@FStyleColors::Error",
+    "codeBg": "@FStyleColors::Background",
+    "separator": "@FStyleColors::DropdownOutline",
+    "diffAdd": {
+      "ref": "@FStyleColors::Success",
+      "alpha": 0.15
+    },
+    "diffDel": {
+      "ref": "@FStyleColors::Error",
+      "alpha": 0.15
+    },
+    "onAccent": "@FStyleColors::ForegroundInverted",
+    "codeInline": "@FStyleColors::AccentOrange",
+    "unrealRef": "@FStyleColors::AccentBlue",
+    "codeNormal": "@FStyleColors::Foreground",
+    "codeKeyword": "@FStyleColors::AccentBlue",
+    "codeString": "@FStyleColors::AccentGreen",
+    "codeComment": "@FStyleColors::AccentGray",
+    "codeNumber": "@FStyleColors::AccentOrange",
+    "codePreproc": "@FStyleColors::AccentPurple",
+    "codeOperator": "@FStyleColors::Foreground",
+    "readoutWarn": "@FStyleColors::Warning",
+    "readoutOver": "@FStyleColors::Error"
+  },
+  "radius": {
+    "sm": 3,
+    "md": 6,
+    "lg": 10,
+    "pill": 999
+  },
+  "space": {
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "controlW": 28,
+    "controlH": 20,
+    "chipMaxW": 240,
+    "popupMinW": 340,
+    "popupMaxH": 420,
+    "composerMinH": 24,
+    "composerMaxH": 168
+  },
+  "font": {
+    "family": "Regular",
+    "monoFamily": "Mono",
+    "body": 10,
+    "small": 8,
+    "mono": 9,
+    "h1": 14,
+    "h2": 12,
+    "h3": 11
+  },
+  "brush": {
+    "transcriptBg": {
+      "type": "box",
+      "fill": "@bg"
+    },
+    "railBg": {
+      "type": "box",
+      "fill": "@panel"
+    },
+    "headerBg": {
+      "type": "box",
+      "fill": "@header"
+    },
+    "composer": {
+      "type": "roundedBox",
+      "fill": "@input",
+      "radius": "md",
+      "outline": "@inputBorder",
+      "outlineWidth": 1
+    },
+    "composerFocused": {
+      "type": "roundedBox",
+      "fill": "@input",
+      "radius": "md",
+      "outline": "@accent",
+      "outlineWidth": 1
+    },
+    "toolCard": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm"
+    },
+    "toolCardError": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@error",
+      "outlineWidth": 1
+    },
+    "toolCardWarn": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@warning",
+      "outlineWidth": 1
+    },
+    "codeBlock": {
+      "type": "roundedBox",
+      "fill": "@codeBg",
+      "radius": "sm"
+    },
+    "chip": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "pill"
+    },
+    "sendButton": {
+      "type": "roundedBox",
+      "fill": "@accent",
+      "radius": "pill"
+    },
+    "sessionActive": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm"
+    },
+    "chipPinned": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "pill",
+      "outline": "@accent",
+      "outlineWidth": 1
+    },
+    "chipError": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "pill",
+      "outline": "@warning",
+      "outlineWidth": 1
+    },
+    "popupBg": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "md",
+      "outline": "@separator",
+      "outlineWidth": 1
+    },
+    "popupRowActive": {
+      "type": "roundedBox",
+      "fill": "@accent",
+      "radius": "sm"
+    },
+    "pillMuted": {
+      "type": "roundedBox",
+      "fill": "@codeBg",
+      "radius": "pill"
+    }
+  },
+  "effects": {
+    "backgroundBlur": 0,
+    "messageEnterMs": 120,
+    "easing": "cubicOut"
+  }
+}

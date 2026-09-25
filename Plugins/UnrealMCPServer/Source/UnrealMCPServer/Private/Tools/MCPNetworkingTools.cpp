@@ -1,6 +1,10 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPNetworkingTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
 #include "MCPProtocol.h"
+#include "MCPToolBuilder.h"
 
 #include "Editor.h"
 #include "Engine/World.h"
@@ -22,11 +26,8 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
 }
 
 static FString NetDormancyToString(ENetDormancy Dormancy)
@@ -59,15 +60,12 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// get_replication_info - Read replication settings from an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor to inspect for replication settings"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name        = TEXT("get_replication_info");
-		Def.Description = TEXT("Get a full report of the network replication settings on an actor: bReplicates, bReplicateMovement, bAlwaysRelevant, bOnlyRelevantToOwner, NetUpdateFrequency, MinNetUpdateFrequency, NetPriority, NetDormancy, and the current net role.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_replication_info")
+		.Description(TEXT("Get a full report of the network replication settings on an actor: bReplicates, bReplicateMovement, bAlwaysRelevant, bOnlyRelevantToOwner, NetUpdateFrequency, MinNetUpdateFrequency, NetPriority, NetDormancy, and the current net role."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to inspect for replication settings"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -93,32 +91,24 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetStringField(TEXT("NetDormancy"),             NetDormancyToString(Actor->NetDormancy));
 			Result->SetStringField(TEXT("net_role"),                NetRoleToString(Actor->GetLocalRole()));
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Def.bReadOnlyHint  = true;
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_replication_settings - Configure actor replication properties
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString (Schema, TEXT("actor_name"),              TEXT("Label of the actor to configure replication settings on"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("replicate"),               TEXT("Enable or disable replication on the actor (bReplicates)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("replicate_movement"),      TEXT("Enable or disable movement replication (bReplicateMovement)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("always_relevant"),         TEXT("If true, this actor is always relevant to all clients (bAlwaysRelevant)"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("only_relevant_to_owner"), TEXT("If true, only the owning client receives this actor's replication updates (bOnlyRelevantToOwner)"));
-		FMCPSchemaBuilder::AddNumber (Schema, TEXT("net_update_frequency"),    TEXT("How many times per second the actor checks for replication updates (NetUpdateFrequency). Typical range: 1-100."));
-		FMCPSchemaBuilder::AddNumber (Schema, TEXT("min_net_update_frequency"),TEXT("Minimum update frequency when the actor is not moving or changing (MinNetUpdateFrequency). Must be <= net_update_frequency."));
-		FMCPSchemaBuilder::AddNumber (Schema, TEXT("net_priority"),            TEXT("Priority given to this actor when bandwidth is constrained. Higher value = sent first (NetPriority). Typical range: 1.0-5.0."));
-
-		FMCPToolDefinition Def;
-		Def.Name        = TEXT("set_replication_settings");
-		Def.Description = TEXT("Configure network replication settings on an actor. Only the parameters you provide are applied. Changes are wrapped in an undo transaction. Use get_replication_info to inspect the current state before modifying.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_replication_settings")
+		.Description(TEXT("Configure network replication settings on an actor. Only the parameters you provide are applied. Changes are wrapped in an undo transaction. Use get_replication_info to inspect the current state before modifying."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to configure replication settings on"), true)
+		.BoolArg(TEXT("replicate"), TEXT("Enable or disable replication on the actor (bReplicates)"))
+		.BoolArg(TEXT("replicate_movement"), TEXT("Enable or disable movement replication (bReplicateMovement)"))
+		.BoolArg(TEXT("always_relevant"), TEXT("If true, this actor is always relevant to all clients (bAlwaysRelevant)"))
+		.BoolArg(TEXT("only_relevant_to_owner"), TEXT("If true, only the owning client receives this actor's replication updates (bOnlyRelevantToOwner)"))
+		.NumberArg(TEXT("net_update_frequency"), TEXT("How many times per second the actor checks for replication updates (NetUpdateFrequency). Typical range: 1-100."))
+		.NumberArg(TEXT("min_net_update_frequency"), TEXT("Minimum update frequency when the actor is not moving or changing (MinNetUpdateFrequency). Must be <= net_update_frequency."))
+		.NumberArg(TEXT("net_priority"), TEXT("Priority given to this actor when bandwidth is constrained. Higher value = sent first (NetPriority). Typical range: 1.0-5.0."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -211,29 +201,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Replication settings updated on '%s': %s"),
 				*ActorName, *FString::Join(Applied, TEXT(", "))));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_net_dormancy - Set the network dormancy mode on an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor to configure network dormancy on"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("dormancy"),
-			TEXT("Network dormancy mode. DORM_Never: always replicate. DORM_Awake: replicate while awake. "
+	MCP_TOOL(Registry, "set_net_dormancy")
+		.Description(TEXT("Set the network dormancy mode on an actor to control how aggressively replication bandwidth is conserved. Dormant actors stop sending replication updates until manually woken with FlushNetDormancy. Use DORM_DormantAll for static or infrequently-updated actors to save bandwidth."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to configure network dormancy on"), true)
+		.EnumArg(TEXT("dormancy"), TEXT("Network dormancy mode. DORM_Never: always replicate. DORM_Awake: replicate while awake. "
 			     "DORM_DormantAll: dormant for all connections (most bandwidth-efficient). "
 			     "DORM_DormantPartial: dormant for some connections. "
-			     "DORM_Initial: starts dormant until explicitly woken."),
-			{ TEXT("DORM_Never"), TEXT("DORM_Awake"), TEXT("DORM_DormantAll"), TEXT("DORM_DormantPartial"), TEXT("DORM_Initial") },
-			true);
-
-		FMCPToolDefinition Def;
-		Def.Name        = TEXT("set_net_dormancy");
-		Def.Description = TEXT("Set the network dormancy mode on an actor to control how aggressively replication bandwidth is conserved. Dormant actors stop sending replication updates until manually woken with FlushNetDormancy. Use DORM_DormantAll for static or infrequently-updated actors to save bandwidth.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+			     "DORM_Initial: starts dormant until explicitly woken."), { TEXT("DORM_Never"), TEXT("DORM_Awake"), TEXT("DORM_DormantAll"), TEXT("DORM_DormantPartial"), TEXT("DORM_Initial") }, true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -250,7 +230,7 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			if (!Actor)
 				return FMCPToolResult::Error(FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 
-			ENetDormancy NewDormancy;
+			ENetDormancy NewDormancy = DORM_Never; // overwritten below; init silences C4701
 			bool bValidDormancy = true;
 			if      (DormancyStr == TEXT("DORM_Never"))          NewDormancy = DORM_Never;
 			else if (DormancyStr == TEXT("DORM_Awake"))          NewDormancy = DORM_Awake;
@@ -278,22 +258,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("NetDormancy set to '%s' on actor '%s'"),
 				*DormancyStr, *ActorName));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_component_replication - Get replication info for all components
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor whose components to inspect"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name        = TEXT("get_component_replication");
-		Def.Description = TEXT("Get a list of all components on an actor with their replication state. Reports: component name, class, bIsReplicated, and bReplicateUsingRegisteredSubObjectList for each component.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_component_replication")
+		.Description(TEXT("Get a list of all components on an actor with their replication state. Reports: component name, class, bIsReplicated, and bReplicateUsingRegisteredSubObjectList for each component."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor whose components to inspect"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -328,27 +302,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			Result->SetNumberField(TEXT("component_count"), (double)ComponentArray.Num());
 			Result->SetArrayField (TEXT("components"),      ComponentArray);
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Def.bReadOnlyHint  = true;
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_component_replication - Enable/disable replication on a component
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString (Schema, TEXT("actor_name"),     TEXT("Label of the actor that owns the component"), true);
-		FMCPSchemaBuilder::AddString (Schema, TEXT("component_name"), TEXT("Name of the component to configure (use get_component_replication to list component names)"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("replicate"),      TEXT("True to enable replication on the component, false to disable it"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name        = TEXT("set_component_replication");
-		Def.Description = TEXT("Enable or disable network replication on a specific component of an actor. The actor must have replication enabled (bReplicates) for component replication to have any effect at runtime. Use get_component_replication to list component names.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_component_replication")
+		.Description(TEXT("Enable or disable network replication on a specific component of an actor. The actor must have replication enabled (bReplicates) for component replication to have any effect at runtime. Use get_component_replication to list component names."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor that owns the component"), true)
+		.StringArg(TEXT("component_name"), TEXT("Name of the component to configure (use get_component_replication to list component names)"), true)
+		.BoolArg(TEXT("replicate"), TEXT("True to enable replication on the component, false to disable it"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -408,9 +374,6 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				TEXT("Component '%s' on actor '%s': replication set to %s"),
 				*ComponentName, *ActorName, bReplicate ? TEXT("enabled") : TEXT("disabled")));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 } // RegisterAll
 

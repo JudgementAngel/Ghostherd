@@ -1,5 +1,8 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPEngineAPITools.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "Misc/Paths.h"
@@ -162,20 +165,17 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// search_engine_class - Find and extract a UE class definition
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("class_name"), TEXT("UE class name to search for (e.g., 'UBlendSpace', 'AActor', 'FVector'). Prefix is optional."), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("include_private"), TEXT("If true, also search Private/ headers. Default: false (Public/Classes only)."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("search_engine_class");
-		Def.Description = TEXT("Search installed Unreal Engine headers for a class definition and extract its declaration with members. Searches the actual installed engine source, providing accurate API info for the current engine version. Returns file path, line number, and class body.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "search_engine_class")
+		.Description(TEXT("Search installed Unreal Engine headers for a class definition and extract its declaration with members. Searches the actual installed engine source, providing accurate API info for the current engine version. Returns file path, line number, and class body."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("class_name"), TEXT("UE class name to search for (e.g., 'UBlendSpace', 'AActor', 'FVector'). Prefix is optional."), true)
+		.BoolArg(TEXT("include_private"), TEXT("If true, also search Private/ headers. Default: false (Public/Classes only)."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
-			FString ClassName = Args->GetStringField(TEXT("class_name"));
+			FString ClassName;
+			if (!Args->TryGetStringField(TEXT("class_name"), ClassName) || ClassName.IsEmpty())
+				return FMCPToolResult::Error(TEXT("class_name is required"));
 			if (ClassName.IsEmpty())
 			{
 				return FMCPToolResult::Error(TEXT("class_name is required"));
@@ -294,33 +294,27 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Result->SetStringField(TEXT("engine_source_dir"), GetEngineSourceDir());
 			}
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// search_engine_api - Grep-like search through engine headers
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("pattern"), TEXT("Search pattern (substring or regex) to find in engine headers. E.g., 'UpdateParameter', 'void\\s+SetMesh'."), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("path_filter"), TEXT("Only search headers whose path contains this substring. E.g., 'Animation', 'Materials', 'Runtime/Engine'."));
-		FMCPSchemaBuilder::AddString(Schema, TEXT("file_filter"), TEXT("Only search headers whose filename contains this substring. E.g., 'BlendSpace', 'Actor'."));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("max_results"), TEXT("Maximum number of matches to return. Default: 20."));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("context_lines"), TEXT("Number of lines of context to include before and after each match. Default: 2."));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("include_private"), TEXT("If true, also search Private/ headers. Default: false."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("search_engine_api");
-		Def.Description = TEXT("Grep-like search through installed Unreal Engine headers. Finds methods, properties, macros, and any text patterns in the engine source. Useful for discovering API signatures, checking method existence, and finding usage patterns.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "search_engine_api")
+		.Description(TEXT("Grep-like search through installed Unreal Engine headers. Finds methods, properties, macros, and any text patterns in the engine source. Useful for discovering API signatures, checking method existence, and finding usage patterns."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("pattern"), TEXT("Search pattern (substring or regex) to find in engine headers. E.g., 'UpdateParameter', 'void\\s+SetMesh'."), true)
+		.StringArg(TEXT("path_filter"), TEXT("Only search headers whose path contains this substring. E.g., 'Animation', 'Materials', 'Runtime/Engine'."))
+		.StringArg(TEXT("file_filter"), TEXT("Only search headers whose filename contains this substring. E.g., 'BlendSpace', 'Actor'."))
+		.IntArg(TEXT("max_results"), TEXT("Maximum number of matches to return. Default: 20."))
+		.IntArg(TEXT("context_lines"), TEXT("Number of lines of context to include before and after each match. Default: 2."))
+		.BoolArg(TEXT("include_private"), TEXT("If true, also search Private/ headers. Default: false."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
-			FString SearchPattern = Args->GetStringField(TEXT("pattern"));
+			FString SearchPattern;
+			if (!Args->TryGetStringField(TEXT("pattern"), SearchPattern) || SearchPattern.IsEmpty())
+				return FMCPToolResult::Error(TEXT("pattern is required"));
 			if (SearchPattern.IsEmpty())
 			{
 				return FMCPToolResult::Error(TEXT("pattern is required"));
@@ -450,30 +444,24 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Result->SetStringField(TEXT("hint"), TEXT("Results capped at max_results. Use path_filter or file_filter to narrow the search."));
 			}
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_engine_header - Read a specific engine header file
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("header_path"), TEXT("Path to the header file. Can be relative to Engine/Source (e.g., 'Runtime/Engine/Classes/Engine/StaticMeshActor.h') or an absolute path."), true);
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("start_line"), TEXT("Start reading from this line number (1-based). Default: 1."));
-		FMCPSchemaBuilder::AddInteger(Schema, TEXT("end_line"), TEXT("Stop reading at this line number (inclusive). Default: end of file."));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_engine_header");
-		Def.Description = TEXT("Read the contents of a specific Unreal Engine header file. Use search_engine_class or search_engine_api first to find the file path. Supports reading specific line ranges for large files.");
-		Def.InputSchema = Schema;
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_engine_header")
+		.Description(TEXT("Read the contents of a specific Unreal Engine header file. Use search_engine_class or search_engine_api first to find the file path. Supports reading specific line ranges for large files."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("header_path"), TEXT("Path to the header file. Can be relative to Engine/Source (e.g., 'Runtime/Engine/Classes/Engine/StaticMeshActor.h') or an absolute path."), true)
+		.IntArg(TEXT("start_line"), TEXT("Start reading from this line number (1-based). Default: 1."))
+		.IntArg(TEXT("end_line"), TEXT("Stop reading at this line number (inclusive). Default: end of file."))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
-			FString HeaderPath = Args->GetStringField(TEXT("header_path"));
+			FString HeaderPath;
+			if (!Args->TryGetStringField(TEXT("header_path"), HeaderPath) || HeaderPath.IsEmpty())
+				return FMCPToolResult::Error(TEXT("header_path is required"));
 			if (HeaderPath.IsEmpty())
 			{
 				return FMCPToolResult::Error(TEXT("header_path is required"));
@@ -542,11 +530,8 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				Result->SetStringField(TEXT("hint"), FString::Printf(TEXT("Showing lines %d-%d of %d. Use start_line/end_line to read more."), StartLine, EndLine, TotalLines));
 			}
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-
-		Registry.RegisterTool(Def);
-	}
 }
 
 } // namespace MCPEngineAPITools

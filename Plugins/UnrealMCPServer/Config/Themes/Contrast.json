@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "name": "Contrast",
+  "_comment": [
+    "High-contrast variant. Text sits at full Foreground rather than a dimmed alpha,",
+    "rules are opaque, and card outlines are always drawn so structure is visible",
+    "without relying on subtle fills. Still fully theme-referenced, so it works in",
+    "both Dark and Light editor themes.",
+    "Also a useful starting point if you find the default too low-contrast on a",
+    "colour-managed or very bright display."
+  ],
+  "color": {
+    "bg": "@FStyleColors::Background",
+    "panel": "@FStyleColors::Panel",
+    "header": "@FStyleColors::Title",
+    "input": "@FStyleColors::Input",
+    "inputBorder": "@FStyleColors::Foreground",
+    "fg": "@FStyleColors::Foreground",
+    "fgSubdued": {
+      "ref": "@FStyleColors::Foreground",
+      "alpha": 0.82
+    },
+    "accent": "@FStyleColors::Primary",
+    "accentHover": "@FStyleColors::PrimaryHover",
+    "ruleUser": "@FStyleColors::Primary",
+    "ruleAsst": "@FStyleColors::AccentBlue",
+    "success": "@FStyleColors::Success",
+    "warning": "@FStyleColors::Warning",
+    "error": "@FStyleColors::Error",
+    "codeBg": "@FStyleColors::Black",
+    "separator": "@FStyleColors::Foreground",
+    "diffAdd": {
+      "ref": "@FStyleColors::Success",
+      "alpha": 0.28
+    },
+    "diffDel": {
+      "ref": "@FStyleColors::Error",
+      "alpha": 0.28
+    },
+    "onAccent": "@FStyleColors::ForegroundInverted",
+    "codeInline": "@FStyleColors::AccentYellow",
+    "unrealRef": "@FStyleColors::AccentBlue",
+    "codeNormal": "@FStyleColors::White",
+    "codeKeyword": "@FStyleColors::AccentBlue",
+    "codeString": "@FStyleColors::AccentGreen",
+    "codeComment": "@FStyleColors::AccentGray",
+    "codeNumber": "@FStyleColors::AccentOrange",
+    "codePreproc": "@FStyleColors::AccentPurple",
+    "codeOperator": "@FStyleColors::White",
+    "readoutWarn": "@FStyleColors::Warning",
+    "readoutOver": "@FStyleColors::Error"
+  },
+  "radius": {
+    "sm": 2,
+    "md": 3,
+    "lg": 4,
+    "pill": 999
+  },
+  "space": {
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "controlW": 28,
+    "controlH": 20,
+    "chipMaxW": 240,
+    "popupMinW": 340,
+    "popupMaxH": 420,
+    "composerMinH": 24,
+    "composerMaxH": 168
+  },
+  "font": {
+    "family": "Regular",
+    "monoFamily": "Mono",
+    "body": 11,
+    "small": 9,
+    "mono": 10,
+    "h1": 15,
+    "h2": 13,
+    "h3": 12
+  },
+  "brush": {
+    "transcriptBg": {
+      "type": "box",
+      "fill": "@bg"
+    },
+    "railBg": {
+      "type": "box",
+      "fill": "@panel"
+    },
+    "headerBg": {
+      "type": "box",
+      "fill": "@header"
+    },
+    "composer": {
+      "type": "roundedBox",
+      "fill": "@input",
+      "radius": "md",
+      "outline": "@inputBorder",
+      "outlineWidth": 1
+    },
+    "composerFocused": {
+      "type": "roundedBox",
+      "fill": "@input",
+      "radius": "md",
+      "outline": "@accent",
+      "outlineWidth": 2
+    },
+    "toolCard": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@separator",
+      "outlineWidth": 1
+    },
+    "toolCardError": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@error",
+      "outlineWidth": 2
+    },
+    "toolCardWarn": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@warning",
+      "outlineWidth": 2
+    },
+    "codeBlock": {
+      "type": "roundedBox",
+      "fill": "@codeBg",
+      "radius": "sm",
+      "outline": "@separator",
+      "outlineWidth": 1
+    },
+    "chip": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@separator",
+      "outlineWidth": 1
+    },
+    "sendButton": {
+      "type": "roundedBox",
+      "fill": "@accent",
+      "radius": "sm"
+    },
+    "sessionActive": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "sm",
+      "outline": "@accent",
+      "outlineWidth": 2
+    },
+    "chipPinned": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "pill",
+      "outline": "@accent",
+      "outlineWidth": 1
+    },
+    "chipError": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "pill",
+      "outline": "@warning",
+      "outlineWidth": 1
+    },
+    "popupBg": {
+      "type": "roundedBox",
+      "fill": "@panel",
+      "radius": "md",
+      "outline": "@separator",
+      "outlineWidth": 1
+    },
+    "popupRowActive": {
+      "type": "roundedBox",
+      "fill": "@accent",
+      "radius": "sm"
+    },
+    "pillMuted": {
+      "type": "roundedBox",
+      "fill": "@codeBg",
+      "radius": "pill"
+    }
+  },
+  "effects": {
+    "backgroundBlur": 0,
+    "messageEnterMs": 0,
+    "easing": "linear"
+  }
+}

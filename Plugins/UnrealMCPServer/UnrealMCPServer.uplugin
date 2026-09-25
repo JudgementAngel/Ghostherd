@@ -1,18 +1,20 @@
 {
 	"FileVersion": 3,
-	"Version": 2,
-	"VersionName": "2.0.0",
+	"Version": 11,
+	"VersionName": "5.0.0",
 	"FriendlyName": "Unreal MCP Server",
-	"Description": "Model Context Protocol server for Unreal Engine 5.7. Exposes 195+ editor tools, resources, and prompts to AI agents via JSON-RPC 2.0 over HTTP. MCP spec 2025-06-18.",
+	"Description": "Unreal MCP Server v5.0.0 (beta) for Unreal Engine 5.8: MCP 2025-06-18 over HTTP with scoped permissions and session-owned state, editor surface capture and observers, deterministic Blueprint/UMG/animation/material/Niagara/sound/PCG validation, typed widget and Blueprint patches with revisions, snapshots and world-bound references, tick-driven PIE scenarios and owned operations, non-blocking external generation, telemetry and diagnostic bundles. Tool reference and validation evidence ship in docs/. Beta: see docs/validation/RELEASE_STATUS.md for proven versus open items.",
 	"Category": "Editor",
-	"CreatedBy": "PodLab",
-	"CreatedByURL": "",
+	"CreatedBy": "StraySpark",
+	"CreatedByURL": "https://www.strayspark.studio",
 	"DocsURL": "https://www.strayspark.studio/docs/unreal-mcp-server",
+	"FabURL": "com.epicgames.launcher://ue/Fab/product/d5bf841c-35e0-4edc-9a84-ba8fabc89c87",
 	"MarketplaceURL": "",
-	"CanContainContent": false,
-	"IsBetaVersion": false,
+	"CanContainContent": true,
+	"IsBetaVersion": true,
 	"IsExperimentalVersion": false,
 	"Installed": false,
+	"EngineVersion": "5.8.0",
 	"EnabledByDefault": true,
 	"Modules": [
 		{
@@ -20,18 +22,11 @@
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
 			"PlatformAllowList": [
-				"Win64",
-				"Mac",
-				"Linux"
+				"Win64"
 			]
 		}
 	],
 	"Plugins": [
-		{
-			"Name": "PythonScriptPlugin",
-			"Enabled": true,
-			"Optional": true
-		},
 		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
@@ -50,6 +45,51 @@
 		},
 		{
 			"Name": "GameplayAbilities",
+			"Enabled": true,
+			"Optional": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true,
+			"Optional": true
+		},
+		{
+			"Name": "GeometryScripting",
+			"Enabled": true
+		},
+		{
+			"Name": "Fracture",
+			"Enabled": true
+		},
+		{
+			"Name": "Metasound",
+			"Enabled": true,
+			"Optional": true
+		},
+		{
+			"Name": "ChaosClothAsset",
+			"Enabled": true
+		},
+		{
+			"Name": "MovieSceneAnimMixer",
+			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": true
+		},
+		{
+			"Name": "MetaHuman",
+			"Enabled": true,
+			"Optional": true
+		},
+		{
+			"Name": "Bridge",
+			"Enabled": true,
+			"Optional": true
+		},
+		{
+			"Name": "ModelContextProtocol",
 			"Enabled": true,
 			"Optional": true
 		}

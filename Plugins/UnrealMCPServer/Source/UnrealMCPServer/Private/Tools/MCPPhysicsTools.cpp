@@ -1,5 +1,9 @@
+// Copyright StraySpark Studio 2026. All Rights Reserved.
+
 #include "Tools/MCPPhysicsTools.h"
+#include "Common/MCPActorResolver.h"
 #include "MCPToolRegistry.h"
+#include "MCPToolBuilder.h"
 #include "MCPProtocol.h"
 
 #include "Editor.h"
@@ -10,6 +14,13 @@
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "PhysicsEngine/PhysicsConstraintActor.h"
 #include "PhysicsEngine/BodyInstance.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
+#include "AssetToolsModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "UObject/SavePackage.h"
+#include "Misc/PackageName.h"
+#include "Factories/Factory.h"
+#include "Common/MCPAssetCreate.h"
 
 namespace MCPPhysicsTools
 {
@@ -25,11 +36,8 @@ static UWorld* GetEditorWorld()
 
 static AActor* FindActorByLabel(UWorld* World, const FString& Label)
 {
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if ((*It)->GetActorLabel() == Label) return *It;
-	}
-	return nullptr;
+	// v4 Phase 1: cached resolver (O(1) amortized) replaces the per-call actor scan.
+	return MCPCommon::FindActorByLabel(World, Label);
 }
 
 void RegisterAll(FMCPToolRegistry& Registry)
@@ -37,26 +45,22 @@ void RegisterAll(FMCPToolRegistry& Registry)
 	// ================================================================
 	// set_physics_simulation - Enable/disable physics on an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor to configure physics on"), true);
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("simulate_physics"), TEXT("Enable or disable physics simulation on the root primitive component"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("enable_gravity"), TEXT("Enable or disable gravity on the component"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("mass_kg"), TEXT("Override the mass in kilograms. Use 0 or omit to clear the override."));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("linear_damping"), TEXT("Linear damping coefficient (drag). Higher values slow linear movement faster."));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("angular_damping"), TEXT("Angular damping coefficient (rotational drag). Higher values slow rotation faster."));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("lock_x_translation"), TEXT("Lock movement along the world X axis"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("lock_y_translation"), TEXT("Lock movement along the world Y axis"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("lock_z_translation"), TEXT("Lock movement along the world Z axis"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("lock_x_rotation"), TEXT("Lock rotation around the world X axis"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("lock_y_rotation"), TEXT("Lock rotation around the world Y axis"));
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("lock_z_rotation"), TEXT("Lock rotation around the world Z axis"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_physics_simulation");
-		Def.Description = TEXT("Enable or disable physics simulation on an actor's root PrimitiveComponent and configure physical properties: mass, damping, gravity, and per-axis translation/rotation locks.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_physics_simulation")
+		.Description(TEXT("Enable or disable physics simulation on an actor's root PrimitiveComponent and configure physical properties: mass, damping, gravity, and per-axis translation/rotation locks."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to configure physics on"), true)
+		.BoolArg(TEXT("simulate_physics"), TEXT("Enable or disable physics simulation on the root primitive component"))
+		.BoolArg(TEXT("enable_gravity"), TEXT("Enable or disable gravity on the component"))
+		.NumberArg(TEXT("mass_kg"), TEXT("Override the mass in kilograms. Use 0 or omit to clear the override."))
+		.NumberArg(TEXT("linear_damping"), TEXT("Linear damping coefficient (drag). Higher values slow linear movement faster."))
+		.NumberArg(TEXT("angular_damping"), TEXT("Angular damping coefficient (rotational drag). Higher values slow rotation faster."))
+		.BoolArg(TEXT("lock_x_translation"), TEXT("Lock movement along the world X axis"))
+		.BoolArg(TEXT("lock_y_translation"), TEXT("Lock movement along the world Y axis"))
+		.BoolArg(TEXT("lock_z_translation"), TEXT("Lock movement along the world Z axis"))
+		.BoolArg(TEXT("lock_x_rotation"), TEXT("Lock rotation around the world X axis"))
+		.BoolArg(TEXT("lock_y_rotation"), TEXT("Lock rotation around the world Y axis"))
+		.BoolArg(TEXT("lock_z_rotation"), TEXT("Lock rotation around the world Z axis"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -181,26 +185,19 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Physics configured on '%s': %s"),
 				*ActorName, *FString::Join(Applied, TEXT(", "))));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// set_collision_profile - Set the collision preset/profile on an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor to configure collision on"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("profile_name"), TEXT("Named collision preset to apply (e.g. 'BlockAll', 'OverlapAll', 'NoCollision', 'Pawn', 'PhysicsActor', 'Trigger'). Takes priority over other settings when provided."));
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("collision_enabled"), TEXT("Type of collision to enable"),
-			{ TEXT("NoCollision"), TEXT("QueryOnly"), TEXT("PhysicsOnly"), TEXT("QueryAndPhysics") });
-		FMCPSchemaBuilder::AddBoolean(Schema, TEXT("generate_overlap_events"), TEXT("Whether the component generates overlap events when it overlaps other components"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("set_collision_profile");
-		Def.Description = TEXT("Set the collision profile (preset) and/or collision enabled type on an actor's root PrimitiveComponent. Use profile_name for named presets like 'BlockAll' or 'PhysicsActor', or use collision_enabled for explicit control.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "set_collision_profile")
+		.Description(TEXT("Set the collision profile (preset) and/or collision enabled type on an actor's root PrimitiveComponent. Use profile_name for named presets like 'BlockAll' or 'PhysicsActor', or use collision_enabled for explicit control."))
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to configure collision on"), true)
+		.StringArg(TEXT("profile_name"), TEXT("Named collision preset to apply (e.g. 'BlockAll', 'OverlapAll', 'NoCollision', 'Pawn', 'PhysicsActor', 'Trigger'). Takes priority over other settings when provided."))
+		.EnumArg(TEXT("collision_enabled"), TEXT("Type of collision to enable"),
+			{ TEXT("NoCollision"), TEXT("QueryOnly"), TEXT("PhysicsOnly"), TEXT("QueryAndPhysics") })
+		.BoolArg(TEXT("generate_overlap_events"), TEXT("Whether the component generates overlap events when it overlaps other components"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -282,29 +279,21 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			return FMCPToolResult::Success(FString::Printf(TEXT("Collision updated on '%s': %s"),
 				*ActorName, *FString::Join(Applied, TEXT(", "))));
 		});
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// add_physics_constraint - Spawn a PhysicsConstraintActor linking two actors
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name_1"), TEXT("Label of the first actor to constrain"), true);
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name_2"), TEXT("Label of the second actor to constrain"), true);
-		FMCPSchemaBuilder::AddEnum(Schema, TEXT("constraint_type"), TEXT("Type of physics constraint to create"),
-			{ TEXT("Fixed"), TEXT("Hinge"), TEXT("Prismatic"), TEXT("BallSocket"), TEXT("Free") });
-		FMCPSchemaBuilder::AddString(Schema, TEXT("label"), TEXT("Label for the spawned PhysicsConstraintActor in the scene outliner"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("x"), TEXT("World X position of the constraint (default: midpoint between actors)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("y"), TEXT("World Y position of the constraint (default: midpoint between actors)"));
-		FMCPSchemaBuilder::AddNumber(Schema, TEXT("z"), TEXT("World Z position of the constraint (default: midpoint between actors)"));
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("add_physics_constraint");
-		Def.Description = TEXT("Spawn an APhysicsConstraintActor that links two actors with a named constraint type. Fixed locks all motion, Hinge allows rotation on one axis, Prismatic allows sliding on one axis, BallSocket allows free rotation, Free allows all motion.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "add_physics_constraint")
+		.Description(TEXT("Spawn an APhysicsConstraintActor that links two actors with a named constraint type. Fixed locks all motion, Hinge allows rotation on one axis, Prismatic allows sliding on one axis, BallSocket allows free rotation, Free allows all motion."))
+		.StringArg(TEXT("actor_name_1"), TEXT("Label of the first actor to constrain"), true)
+		.StringArg(TEXT("actor_name_2"), TEXT("Label of the second actor to constrain"), true)
+		.EnumArg(TEXT("constraint_type"), TEXT("Type of physics constraint to create"),
+			{ TEXT("Fixed"), TEXT("Hinge"), TEXT("Prismatic"), TEXT("BallSocket"), TEXT("Free") })
+		.StringArg(TEXT("label"), TEXT("Label for the spawned PhysicsConstraintActor in the scene outliner"))
+		.NumberArg(TEXT("x"), TEXT("World X position of the constraint (default: midpoint between actors)"))
+		.NumberArg(TEXT("y"), TEXT("World Y position of the constraint (default: midpoint between actors)"))
+		.NumberArg(TEXT("z"), TEXT("World Z position of the constraint (default: midpoint between actors)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -453,21 +442,16 @@ void RegisterAll(FMCPToolRegistry& Registry)
 				*ActorName1, *ActorName2,
 				SpawnPos.X, SpawnPos.Y, SpawnPos.Z));
 		});
-		Registry.RegisterTool(Def);
-	}
 
 	// ================================================================
 	// get_physics_info - Read physics state from an actor
 	// ================================================================
-	{
-		auto Schema = FMCPSchemaBuilder::Begin();
-		FMCPSchemaBuilder::AddString(Schema, TEXT("actor_name"), TEXT("Label of the actor to inspect"), true);
-
-		FMCPToolDefinition Def;
-		Def.Name = TEXT("get_physics_info");
-		Def.Description = TEXT("Get a comprehensive physics report for an actor: simulation state, mass, damping, gravity, collision profile, bounds, velocity, center of mass, and inertia tensor.");
-		Def.InputSchema = Schema;
-		Def.Handler.BindLambda([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+	MCP_TOOL(Registry, "get_physics_info")
+		.Description(TEXT("Get a comprehensive physics report for an actor: simulation state, mass, damping, gravity, collision profile, bounds, velocity, center of mass, and inertia tensor."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor to inspect"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
 		{
 			UWorld* World = GetEditorWorld();
 			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
@@ -489,7 +473,7 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			{
 				Result->SetBoolField(TEXT("has_primitive_component"), false);
 				Result->SetStringField(TEXT("note"), TEXT("Actor has no root PrimitiveComponent. Physics requires a PrimitiveComponent."));
-				return FMCPToolResult::Success(JsonToString(Result));
+				return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 			}
 
 			Result->SetBoolField(TEXT("has_primitive_component"), true);
@@ -589,13 +573,249 @@ void RegisterAll(FMCPToolRegistry& Registry)
 			LocksObj->SetBoolField(TEXT("lock_z_rotation"), BI.bLockZRotation);
 			Result->SetObjectField(TEXT("axis_locks"), LocksObj);
 
-			return FMCPToolResult::Success(JsonToString(Result));
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
 		});
-		Def.bReadOnlyHint = true;
-		Def.bIdempotentHint = true;
-		Registry.RegisterTool(Def);
-	}
 
+	// ================================================================
+	// create_physics_material - Create a PhysicalMaterial asset
+	// ================================================================
+	MCP_TOOL(Registry, "create_physics_material")
+		.Description(TEXT("Create a PhysicalMaterial asset with configurable friction, restitution (bounciness), and density. Use assign_physics_material to apply it to actors."))
+		.StringArg(TEXT("asset_path"), TEXT("Content path for the new PhysicalMaterial (e.g., '/Game/Physics/PM_Ice')"), true)
+		.NumberArg(TEXT("friction"), TEXT("Friction coefficient (default: 0.7)"))
+		.NumberArg(TEXT("static_friction"), TEXT("Static friction override (default: same as friction)"))
+		.NumberArg(TEXT("restitution"), TEXT("Bounciness 0-1 (default: 0.3)"))
+		.NumberArg(TEXT("density"), TEXT("Density in kg/cm^3 (default: 1.0)"))
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		{
+			FString AssetPath;
+			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
+				return FMCPToolResult::Error(TEXT("asset_path is required"));
+
+			FString PackagePath, AssetName;
+			FMCPToolResult PackageError;
+			UPackage* Package = MCPCommon::CreateAssetPackage(AssetPath, PackagePath, AssetName, PackageError);
+			if (!Package) return PackageError;
+
+			UPhysicalMaterial* NewMat = NewObject<UPhysicalMaterial>(Package, FName(*AssetName),
+				RF_Public | RF_Standalone);
+			if (!NewMat) return FMCPToolResult::Error(TEXT("Failed to create PhysicalMaterial"));
+
+			if (Args->HasField(TEXT("friction")))
+				NewMat->Friction = (float)Args->GetNumberField(TEXT("friction"));
+			if (Args->HasField(TEXT("static_friction")))
+				NewMat->StaticFriction = (float)Args->GetNumberField(TEXT("static_friction"));
+			if (Args->HasField(TEXT("restitution")))
+				NewMat->Restitution = (float)Args->GetNumberField(TEXT("restitution"));
+			if (Args->HasField(TEXT("density")))
+				NewMat->Density = (float)Args->GetNumberField(TEXT("density"));
+
+			FAssetRegistryModule::AssetCreated(NewMat);
+			Package->MarkPackageDirty();
+
+			FString PackageFilename = FPackageName::LongPackageNameToFilename(PackagePath, FPackageName::GetAssetPackageExtension());
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+			UPackage::SavePackage(Package, NewMat, *PackageFilename, SaveArgs);
+
+			return FMCPToolResult::Success(FString::Printf(
+				TEXT("Created PhysicalMaterial '%s' at %s (friction=%.2f, restitution=%.2f, density=%.2f)"),
+				*AssetName, *AssetPath, NewMat->Friction, NewMat->Restitution, NewMat->Density));
+		});
+
+	// ================================================================
+	// assign_physics_material - Assign PhysicalMaterial to actor
+	// ================================================================
+	MCP_TOOL(Registry, "assign_physics_material")
+		.Description(TEXT("Assign a PhysicalMaterial to an actor's root PrimitiveComponent. Controls friction, bounciness, and density for physics interactions."))
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor"), true)
+		.StringArg(TEXT("material_path"), TEXT("Content path to the PhysicalMaterial asset"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		{
+			UWorld* World = GetEditorWorld();
+			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
+
+			FString ActorName, MatPath;
+			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
+				return FMCPToolResult::Error(TEXT("actor_name is required"));
+			if (!Args->TryGetStringField(TEXT("material_path"), MatPath))
+				return FMCPToolResult::Error(TEXT("material_path is required"));
+
+			AActor* Actor = FindActorByLabel(World, ActorName);
+			if (!Actor) return FMCPToolResult::Error(FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+
+			UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+			if (!PrimComp)
+				return FMCPToolResult::Error(FString::Printf(TEXT("Actor '%s' has no root PrimitiveComponent"), *ActorName));
+
+			UPhysicalMaterial* PhysMat = LoadObject<UPhysicalMaterial>(nullptr, *MatPath);
+			if (!PhysMat)
+				return FMCPToolResult::Error(FString::Printf(TEXT("PhysicalMaterial not found: %s"), *MatPath));
+
+			GEditor->BeginTransaction(FText::FromString(TEXT("MCP: Assign Physics Material")));
+			PrimComp->Modify();
+
+			PrimComp->BodyInstance.SetPhysMaterialOverride(PhysMat);
+
+			GEditor->EndTransaction();
+
+			return FMCPToolResult::Success(FString::Printf(
+				TEXT("Assigned PhysicalMaterial '%s' to actor '%s'"), *PhysMat->GetName(), *ActorName));
+		});
+
+	// ================================================================
+	// get_physics_material_info - Read physics material properties
+	// ================================================================
+	MCP_TOOL(Registry, "get_physics_material_info")
+		.Description(TEXT("Read properties of a PhysicalMaterial asset: friction, static friction, restitution (bounciness), density, and surface type. Use to inspect existing physics materials before assigning them."))
+		.ReadOnly()
+		.Idempotent()
+		.StringArg(TEXT("asset_path"), TEXT("Content path to the PhysicalMaterial asset"), true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		{
+			FString AssetPath;
+			if (!Args->TryGetStringField(TEXT("asset_path"), AssetPath))
+				return FMCPToolResult::Error(TEXT("asset_path is required"));
+
+			UPhysicalMaterial* PhysMat = LoadObject<UPhysicalMaterial>(nullptr, *AssetPath);
+			if (!PhysMat)
+				return FMCPToolResult::Error(FString::Printf(TEXT("PhysicalMaterial not found: %s"), *AssetPath));
+
+			TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
+			Result->SetStringField(TEXT("name"), PhysMat->GetName());
+			Result->SetStringField(TEXT("path"), PhysMat->GetPathName());
+			Result->SetNumberField(TEXT("friction"), PhysMat->Friction);
+			Result->SetNumberField(TEXT("static_friction"), PhysMat->StaticFriction);
+			Result->SetNumberField(TEXT("restitution"), PhysMat->Restitution);
+			Result->SetNumberField(TEXT("density"), PhysMat->Density);
+
+			// Friction combine mode
+			FString FrictionCombine;
+			switch (PhysMat->FrictionCombineMode)
+			{
+				case EFrictionCombineMode::Average: FrictionCombine = TEXT("Average"); break;
+				case EFrictionCombineMode::Min: FrictionCombine = TEXT("Min"); break;
+				case EFrictionCombineMode::Multiply: FrictionCombine = TEXT("Multiply"); break;
+				case EFrictionCombineMode::Max: FrictionCombine = TEXT("Max"); break;
+				default: FrictionCombine = TEXT("Average"); break;
+			}
+			Result->SetStringField(TEXT("friction_combine_mode"), FrictionCombine);
+
+			// Restitution combine mode
+			FString RestitutionCombine;
+			switch (PhysMat->RestitutionCombineMode)
+			{
+				case EFrictionCombineMode::Average: RestitutionCombine = TEXT("Average"); break;
+				case EFrictionCombineMode::Min: RestitutionCombine = TEXT("Min"); break;
+				case EFrictionCombineMode::Multiply: RestitutionCombine = TEXT("Multiply"); break;
+				case EFrictionCombineMode::Max: RestitutionCombine = TEXT("Max"); break;
+				default: RestitutionCombine = TEXT("Average"); break;
+			}
+			Result->SetStringField(TEXT("restitution_combine_mode"), RestitutionCombine);
+
+			// Surface type
+			Result->SetNumberField(TEXT("surface_type"), (int32)PhysMat->SurfaceType.GetValue());
+
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
+		});
+
+	// ================================================================
+	// list_collision_channels - List all collision channels
+	// ================================================================
+	MCP_TOOL(Registry, "list_collision_channels")
+		.Description(TEXT("List all collision channels (default engine channels + custom project channels) with their default responses. Use with set_collision_response to configure per-actor collision."))
+		.ReadOnly()
+		.Idempotent()
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		{
+			TArray<TSharedPtr<FJsonValue>> ChannelArray;
+
+			// List all 32 possible channels
+			for (int32 i = 0; i < ECC_MAX; i++)
+			{
+				ECollisionChannel Channel = (ECollisionChannel)i;
+				FName ChannelName = UCollisionProfile::Get()->ReturnChannelNameFromContainerIndex(i);
+				if (ChannelName == NAME_None) continue;
+
+				TSharedPtr<FJsonObject> ChObj = MakeShared<FJsonObject>();
+				ChObj->SetNumberField(TEXT("index"), i);
+				ChObj->SetStringField(TEXT("name"), ChannelName.ToString());
+
+				// Determine if custom or default
+				bool bIsCustom = (i >= ECC_GameTraceChannel1 && i <= ECC_GameTraceChannel18);
+				ChObj->SetBoolField(TEXT("is_custom"), bIsCustom);
+
+				ChannelArray.Add(MakeShared<FJsonValueObject>(ChObj));
+			}
+
+			TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
+			Result->SetNumberField(TEXT("count"), ChannelArray.Num());
+			Result->SetArrayField(TEXT("channels"), ChannelArray);
+
+			return FMCPToolResult::SuccessStructured(JsonToString(Result), Result);
+		});
+
+	// ================================================================
+	// set_collision_response - Set per-channel collision response
+	// ================================================================
+	MCP_TOOL(Registry, "set_collision_response")
+		.Description(TEXT("Set the collision response for a specific channel on an actor's root PrimitiveComponent. Use list_collision_channels to see available channels. Common channels: WorldStatic, WorldDynamic, Pawn, PhysicsBody, Vehicle, Destructible."))
+		.StringArg(TEXT("actor_name"), TEXT("Label of the actor"), true)
+		.StringArg(TEXT("channel"), TEXT("Collision channel name (e.g., 'WorldStatic', 'Pawn', 'PhysicsBody', 'Visibility')"), true)
+		.EnumArg(TEXT("response"), TEXT("Collision response for this channel"),
+			{ TEXT("Block"), TEXT("Overlap"), TEXT("Ignore") }, true)
+		.Handle([](const TSharedPtr<FJsonObject>& Args) -> FMCPToolResult
+		{
+			UWorld* World = GetEditorWorld();
+			if (!World) return FMCPToolResult::Error(TEXT("No editor world available"));
+
+			FString ActorName, ChannelStr, ResponseStr;
+			if (!Args->TryGetStringField(TEXT("actor_name"), ActorName))
+				return FMCPToolResult::Error(TEXT("actor_name is required"));
+			if (!Args->TryGetStringField(TEXT("channel"), ChannelStr))
+				return FMCPToolResult::Error(TEXT("channel is required"));
+			if (!Args->TryGetStringField(TEXT("response"), ResponseStr))
+				return FMCPToolResult::Error(TEXT("response is required"));
+
+			AActor* Actor = FindActorByLabel(World, ActorName);
+			if (!Actor) return FMCPToolResult::Error(FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+
+			UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+			if (!PrimComp)
+				return FMCPToolResult::Error(FString::Printf(TEXT("Actor '%s' has no root PrimitiveComponent"), *ActorName));
+
+			// Find channel by name
+			ECollisionChannel FoundChannel = ECC_MAX;
+			for (int32 i = 0; i < ECC_MAX; i++)
+			{
+				FName ChName = UCollisionProfile::Get()->ReturnChannelNameFromContainerIndex(i);
+				if (ChName.ToString().Equals(ChannelStr, ESearchCase::IgnoreCase))
+				{
+					FoundChannel = (ECollisionChannel)i;
+					break;
+				}
+			}
+
+			if (FoundChannel == ECC_MAX)
+				return FMCPToolResult::Error(FString::Printf(TEXT("Collision channel not found: '%s'. Use list_collision_channels to see valid channels."), *ChannelStr));
+
+			ECollisionResponse Response;
+			if (ResponseStr == TEXT("Block")) Response = ECR_Block;
+			else if (ResponseStr == TEXT("Overlap")) Response = ECR_Overlap;
+			else if (ResponseStr == TEXT("Ignore")) Response = ECR_Ignore;
+			else return FMCPToolResult::Error(FString::Printf(TEXT("Invalid response: '%s'. Use Block, Overlap, or Ignore."), *ResponseStr));
+
+			GEditor->BeginTransaction(FText::FromString(TEXT("MCP: Set Collision Response")));
+			PrimComp->Modify();
+
+			PrimComp->SetCollisionResponseToChannel(FoundChannel, Response);
+
+			GEditor->EndTransaction();
+
+			return FMCPToolResult::Success(FString::Printf(
+				TEXT("Set collision response for '%s' channel '%s' = %s"),
+				*ActorName, *ChannelStr, *ResponseStr));
+		});
 } // RegisterAll
 
 } // namespace MCPPhysicsTools
